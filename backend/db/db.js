@@ -1,12 +1,9 @@
-require('dotenv').config();
-const { Pool } = require('pg');
+const Database = require('better-sqlite3');
+const path = require('path');
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+const dbPath = path.join(__dirname, '../../data/inventario.db');
+const db = new Database(dbPath);
 
-pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
-});
+db.pragma('journal_mode = WAL');
 
-module.exports = pool;
+module.exports = db;

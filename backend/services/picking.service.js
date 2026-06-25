@@ -1,14 +1,11 @@
-const pool = require('../db/db');
+const db = require('../db/db');
 
 class PickingService {
-  // Genera lista de picking para el día (basada en pedidos agendados + ad-hoc)
-  async generarPickingList(fecha) {
-    // Obtener qué día de la semana es (lunes=0, domingo=6)
+  generarPickingList(fecha) {
     const fecha_date = new Date(fecha);
     const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
     const dia_nombre = dias[fecha_date.getDay()];
 
-    // Pedidos agendados para hoy
     const queryPedidosAgendados = `
       SELECT
         c.id as cliente_id,
@@ -17,12 +14,11 @@ class PickingService {
         pa.cantidad_canales
       FROM pedidos_agendados pa
       JOIN clientes c ON pa.cliente_id = c.id
-      WHERE pa.dia = $1 AND pa.activo = TRUE
+      WHERE pa.dia = ? AND pa.activo = TRUE
     `;
 
-    const pedidosAgendados = await pool.query(queryPedidosAgendados, [dia_nombre]);
+    const pedidosAgendados = db.prepare(queryPedidosAgendados).all(dia_nombre);
 
-    // Obtener canales disponibles ordenados por LIFO (más recientes primero dentro de cada riel)
     const queryCanalesDisponibles = `
       SELECT
         id,
@@ -31,24 +27,23 @@ class PickingService {
         clasificacion,
         ubicacion_riel,
         fecha_entrada,
-        EXTRACT(DAY FROM (NOW() - fecha_entrada)) as dias_en_frio
+        CAST((julianday('now') - julianday(fecha_entrada)) AS INTEGER) as dias_en_frio
       FROM canales
       WHERE estado = 'en_reefer'
       ORDER BY ubicacion_riel, fecha_entrada DESC
     `;
 
-    const canalesDisponibles = await pool.query(queryCanalesDisponibles);
+    const canalesDisponibles = db.prepare(queryCanalesDisponibles).all();
 
-    // Armar picking list: asignar canales a cada cliente
     const pickingList = [];
     let canalIndex = 0;
 
-    for (const pedido of pedidosAgendados.rows) {
+    for (const pedido of pedidosAgendados) {
       const canalesAsignados = [];
       let cantidad = pedido.cantidad_canales;
 
-      while (cantidad > 0 && canalIndex < canalesDisponibles.rows.length) {
-        const canal = canalesDisponibles.rows[canalIndex];
+      while (cantidad > 0 && canalIndex < canalesDisponibles.length) {
+        const canal = canalesDisponibles[canalIndex];
         canalesAsignados.push(canal);
         canalIndex++;
         cantidad--;
@@ -67,44 +62,42 @@ class PickingService {
     return pickingList;
   }
 
-  // Confirmar picking: crear pedido y marcar canales como vendidos
-  async confirmarPicking(clienteId, canalesIds, fecha_pedido) {
+  confirmarPicking(clienteId, canalesIds, fecha_pedido) {
     try {
-      // Insertar pedido
-      const queryPedido = `
+      const insertPedido = db.prepare(`
         INSERT INTO pedidos (cliente_id, fecha_pedido, cantidad_canales)
-        VALUES ($1, $2, $3)
-        RETURNING id
-      `;
+        VALUES (?, ?, ?)
+      `);
 
       const cantidad = canalesIds.length;
-      const pedidoResult = await pool.query(queryPedido, [clienteId, fecha_pedido, cantidad]);
-      const pedidoId = pedidoResult.rows[0].id;
+      const pedidoResult = insertPedido.run(clienteId, fecha_pedido, cantidad);
+      const pedidoId = pedidoResult.lastInsertRowid;
 
-      // Marcar canales como vendidos y asociar al pedido
       let pesoTotal = 0;
-      for (const canalId of canalesIds) {
-        const queryActualizar = `
-          UPDATE canales
-          SET estado = 'vendido', fecha_salida = NOW(), cliente_id = $2
-          WHERE id = $1
-          RETURNING peso_lbs
-        `;
-        const canalResult = await pool.query(queryActualizar, [canalId, clienteId]);
-        pesoTotal += parseFloat(canalResult.rows[0].peso_lbs);
+      const updateCanal = db.prepare(`
+        UPDATE canales
+        SET estado = 'vendido', fecha_salida = datetime('now'), cliente_id = ?
+        WHERE id = ?
+      `);
 
-        // Insertar en detalles de pedido
-        await pool.query(
-          'INSERT INTO pedido_detalles (pedido_id, canal_id, peso_lbs) VALUES ($1, $2, $3)',
-          [pedidoId, canalId, canalResult.rows[0].peso_lbs]
-        );
-      }
-
-      // Actualizar peso total del pedido
-      await pool.query(
-        'UPDATE pedidos SET peso_total_lbs = $1 WHERE id = $2',
-        [pesoTotal, pedidoId]
+      const insertDetalle = db.prepare(
+        'INSERT INTO pedido_detalles (pedido_id, canal_id, peso_lbs) VALUES (?, ?, ?)'
       );
+
+      const getCanal = db.prepare('SELECT peso_lbs FROM canales WHERE id = ?');
+      const updatePeso = db.prepare('UPDATE pedidos SET peso_total_lbs = ? WHERE id = ?');
+
+      const confirmMany = db.transaction(() => {
+        for (const canalId of canalesIds) {
+          updateCanal.run(clienteId, canalId);
+          const canal = getCanal.get(canalId);
+          pesoTotal += parseFloat(canal.peso_lbs);
+          insertDetalle.run(pedidoId, canalId, canal.peso_lbs);
+        }
+        updatePeso.run(pesoTotal, pedidoId);
+      });
+
+      confirmMany();
 
       return { pedidoId, pesoTotal };
     } catch (error) {
@@ -112,8 +105,7 @@ class PickingService {
     }
   }
 
-  // Obtener detalle de un pedido
-  async obtenerDetallePedido(pedidoId) {
+  obtenerDetallePedido(pedidoId) {
     const query = `
       SELECT
         p.id,
@@ -122,8 +114,8 @@ class PickingService {
         p.cantidad_canales,
         p.peso_total_lbs,
         p.estado,
-        json_agg(
-          json_build_object(
+        json_group_array(
+          json_object(
             'canal_id', pd.canal_id,
             'peso_lbs', pd.peso_lbs
           )
@@ -131,11 +123,10 @@ class PickingService {
       FROM pedidos p
       JOIN clientes c ON p.cliente_id = c.id
       LEFT JOIN pedido_detalles pd ON p.id = pd.pedido_id
-      WHERE p.id = $1
+      WHERE p.id = ?
       GROUP BY p.id, c.nombre, p.fecha_pedido, p.cantidad_canales, p.peso_total_lbs, p.estado
     `;
-    const result = await pool.query(query, [pedidoId]);
-    return result.rows[0];
+    return db.prepare(query).get(pedidoId);
   }
 }
 

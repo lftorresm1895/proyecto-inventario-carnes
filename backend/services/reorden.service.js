@@ -1,12 +1,10 @@
-const pool = require('../db/db');
+const db = require('../db/db');
 
 class ReordenService {
-  // Calcula si hay que pedir canales hoy (lead time 2 días)
-  async calcularNecesidadReorden(hoy) {
+  calcularNecesidadReorden(hoy) {
     const fecha = new Date(hoy);
     const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
 
-    // Determinar qué días necesitan inventario en los próximos 2 días
     const diasProximos = [];
     for (let i = 1; i <= 2; i++) {
       const proxima = new Date(fecha);
@@ -14,22 +12,20 @@ class ReordenService {
       diasProximos.push(dias[proxima.getDay()]);
     }
 
-    // Obtener pedidos agendados para los próximos 2 días
-    const query = `
+    const queryPedidosAgendados = `
       SELECT
         SUM(pa.cantidad_canales) as total_pedidos
       FROM pedidos_agendados pa
-      WHERE pa.dia = ANY($1::text[]) AND pa.activo = TRUE
+      WHERE pa.dia IN (${diasProximos.map(() => '?').join(',')}) AND pa.activo = TRUE
     `;
 
-    const pedidosResult = await pool.query(query, [diasProximos]);
-    const totalPedidos = pedidosResult.rows[0]?.total_pedidos || 0;
+    const pedidosResult = db.prepare(queryPedidosAgendados).get(...diasProximos);
+    const totalPedidos = pedidosResult?.total_pedidos || 0;
 
-    // Obtener inventario actual
-    const inventarioResult = await pool.query(
+    const inventarioResult = db.prepare(
       'SELECT COUNT(*) as total FROM canales WHERE estado = \'en_reefer\''
-    );
-    const totalInventario = parseInt(inventarioResult.rows[0].total);
+    ).get();
+    const totalInventario = inventarioResult.total;
 
     const limiteCapacidad = 180;
     const disponible = limiteCapacidad - totalInventario;
@@ -47,25 +43,22 @@ class ReordenService {
     };
   }
 
-  // Obtener historial de pedidos para estimar demanda
-  async obtenerHistorialDemanda(dias = 30) {
+  obtenerHistorialDemanda(dias = 30) {
     const query = `
       SELECT
         fecha_pedido,
         COUNT(*) as cantidad_pedidos,
         SUM(cantidad_canales) as total_canales,
-        AVG(cantidad_canales) as promedio_canales
+        ROUND(AVG(cantidad_canales), 2) as promedio_canales
       FROM pedidos
-      WHERE fecha_pedido >= NOW() - INTERVAL '1 day' * $1
+      WHERE fecha_pedido >= date('now', '-${dias} days')
       GROUP BY fecha_pedido
       ORDER BY fecha_pedido DESC
     `;
-    const result = await pool.query(query, [dias]);
-    return result.rows;
+    return db.prepare(query).all();
   }
 
-  // Proyección de agotamiento de inventario
-  async proyectarAgotamiento() {
+  proyectarAgotamiento() {
     const query = `
       SELECT
         COUNT(*) as canales_actuales,
@@ -73,8 +66,7 @@ class ReordenService {
          FROM pedidos_agendados
          WHERE activo = TRUE) as demanda_semanal_agendada
     `;
-    const result = await pool.query(query);
-    const data = result.rows[0];
+    const data = db.prepare(query).get();
 
     const demandaSemanal = data.demanda_semanal_agendada || 0;
     const diasParaAgotamiento = demandaSemanal > 0

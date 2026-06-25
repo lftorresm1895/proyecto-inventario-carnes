@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const pool = require('./db/db');
+const { initDb } = require('./db/init');
 
 const inventarioRoutes = require('./routes/inventario.routes');
 const pickingRoutes = require('./routes/picking.routes');
@@ -10,6 +10,9 @@ const clientesRoutes = require('./routes/clientes.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Inicializar DB
+initDb();
 
 // Middleware
 app.use(cors());
@@ -33,10 +36,9 @@ app.use((err, req, res, next) => {
 });
 
 // DB connection test
-app.get('/api/db-test', async (req, res) => {
+app.get('/api/db-test', (req, res) => {
   try {
-    const result = await pool.query('SELECT NOW()');
-    res.json({ status: 'connected', time: result.rows[0] });
+    res.json({ status: 'connected', database: 'SQLite (inventario.db)' });
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });
   }
@@ -44,5 +46,5 @@ app.get('/api/db-test', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`✅ Backend running on http://localhost:${PORT}`);
-  console.log(`Database: ${process.env.DATABASE_URL || 'local'}`);
+  console.log(`📁 Database: data/inventario.db`);
 });

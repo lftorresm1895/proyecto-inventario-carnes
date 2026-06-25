@@ -1,29 +1,30 @@
-const pool = require('../db/db');
+const db = require('../db/db');
 
 class InventarioService {
-  // Entrada: registra canales que llegan
-  async registrarEntrada(canales) {
-    const query = `
+  registrarEntrada(canales) {
+    const stmt = db.prepare(`
       INSERT INTO canales (numero_canal, peso_lbs, clasificacion, ubicacion_riel, estado)
-      VALUES ($1, $2, $3, $4, 'en_reefer')
-      RETURNING *
-    `;
+      VALUES (?, ?, ?, ?, 'en_reefer')
+    `);
 
     const results = [];
-    for (const canal of canales) {
-      const result = await pool.query(query, [
-        canal.numero_canal,
-        canal.peso_lbs,
-        canal.clasificacion || 'normal',
-        canal.ubicacion_riel,
-      ]);
-      results.push(result.rows[0]);
-    }
+    const insertMany = db.transaction((items) => {
+      for (const canal of items) {
+        const result = stmt.run(
+          canal.numero_canal,
+          canal.peso_lbs,
+          canal.clasificacion || 'normal',
+          canal.ubicacion_riel
+        );
+        results.push({ id: result.lastInsertRowid, ...canal });
+      }
+    });
+
+    insertMany(canales);
     return results;
   }
 
-  // Obtener inventario actual (disponible en reefer)
-  async obtenerInventarioActual() {
+  obtenerInventarioActual() {
     const query = `
       SELECT
         id,
@@ -32,18 +33,16 @@ class InventarioService {
         clasificacion,
         ubicacion_riel,
         fecha_entrada,
-        EXTRACT(DAY FROM (NOW() - fecha_entrada)) as dias_en_frio,
+        CAST((julianday('now') - julianday(fecha_entrada)) AS INTEGER) as dias_en_frio,
         estado
       FROM canales
       WHERE estado = 'en_reefer'
       ORDER BY ubicacion_riel, fecha_entrada ASC
     `;
-    const result = await pool.query(query);
-    return result.rows;
+    return db.prepare(query).all();
   }
 
-  // Obtener canales por riel
-  async obtenerCanalPorRiel(riel) {
+  obtenerCanalPorRiel(riel) {
     const query = `
       SELECT
         id,
@@ -52,63 +51,54 @@ class InventarioService {
         clasificacion,
         ubicacion_riel,
         fecha_entrada,
-        EXTRACT(DAY FROM (NOW() - fecha_entrada)) as dias_en_frio
+        CAST((julianday('now') - julianday(fecha_entrada)) AS INTEGER) as dias_en_frio
       FROM canales
-      WHERE ubicacion_riel = $1 AND estado = 'en_reefer'
+      WHERE ubicacion_riel = ? AND estado = 'en_reefer'
       ORDER BY fecha_entrada ASC
     `;
-    const result = await pool.query(query, [riel]);
-    return result.rows;
+    return db.prepare(query).all(riel);
   }
 
-  // Obtener resumen de inventario
-  async obtenerResumenInventario() {
+  obtenerResumenInventario() {
     const query = `
       SELECT
         COUNT(*) as total_canales,
-        SUM(peso_lbs) as peso_total_lbs,
+        ROUND(SUM(peso_lbs), 2) as peso_total_lbs,
         COUNT(CASE WHEN clasificacion = 'light' THEN 1 END) as canales_light,
         COUNT(CASE WHEN clasificacion = 'normal' THEN 1 END) as canales_normal
       FROM canales
       WHERE estado = 'en_reefer'
     `;
-    const result = await pool.query(query);
-    return result.rows[0];
+    return db.prepare(query).get();
   }
 
-  // Marcar canal como vendido
-  async marcarComoVendido(canalId, clienteId) {
+  marcarComoVendido(canalId, clienteId) {
     const query = `
       UPDATE canales
-      SET estado = 'vendido', fecha_salida = NOW(), cliente_id = $2
-      WHERE id = $1
-      RETURNING *
+      SET estado = 'vendido', fecha_salida = datetime('now'), cliente_id = ?
+      WHERE id = ?
     `;
-    const result = await pool.query(query, [canalId, clienteId]);
-    return result.rows[0];
+    db.prepare(query).run(clienteId, canalId);
+    return db.prepare('SELECT * FROM canales WHERE id = ?').get(canalId);
   }
 
-  // Registrar subproductos
-  async registrarSubproducto(tipo, cantidad, peso_lbs, ubicacion) {
+  registrarSubproducto(tipo, cantidad, peso_lbs, ubicacion) {
     const query = `
       INSERT INTO subproductos (tipo, cantidad, peso_lbs, ubicacion, estado)
-      VALUES ($1, $2, $3, $4, 'disponible')
-      RETURNING *
+      VALUES (?, ?, ?, ?, 'disponible')
     `;
-    const result = await pool.query(query, [tipo, cantidad, peso_lbs, ubicacion]);
-    return result.rows[0];
+    const result = db.prepare(query).run(tipo, cantidad, peso_lbs, ubicacion);
+    return db.prepare('SELECT * FROM subproductos WHERE id = ?').get(result.lastInsertRowid);
   }
 
-  // Obtener subproductos disponibles
-  async obtenerSubproductosDisponibles() {
+  obtenerSubproductosDisponibles() {
     const query = `
       SELECT *
       FROM subproductos
       WHERE estado = 'disponible'
       ORDER BY tipo, fecha_entrada ASC
     `;
-    const result = await pool.query(query);
-    return result.rows;
+    return db.prepare(query).all();
   }
 }
 

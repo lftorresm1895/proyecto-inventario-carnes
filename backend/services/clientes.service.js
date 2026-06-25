@@ -1,65 +1,52 @@
-const pool = require('../db/db');
+const db = require('../db/db');
 
 class ClientesService {
-  // Crear cliente
-  async crearCliente(nombre, telefono, email) {
+  crearCliente(nombre, telefono, email) {
     const query = `
       INSERT INTO clientes (nombre, telefono, email)
-      VALUES ($1, $2, $3)
-      RETURNING *
+      VALUES (?, ?, ?)
     `;
-    const result = await pool.query(query, [nombre, telefono, email]);
-    return result.rows[0];
+    const result = db.prepare(query).run(nombre, telefono, email);
+    return db.prepare('SELECT * FROM clientes WHERE id = ?').get(result.lastInsertRowid);
   }
 
-  // Obtener todos los clientes
-  async obtenerClientes() {
+  obtenerClientes() {
     const query = `
       SELECT
         c.id,
         c.nombre,
         c.telefono,
         c.email,
-        json_agg(
-          json_build_object(
+        json_group_array(
+          CASE WHEN pa.id IS NOT NULL THEN json_object(
+            'id', pa.id,
             'dia', pa.dia,
             'cantidad_canales', pa.cantidad_canales,
             'activo', pa.activo
-          )
-        ) FILTER (WHERE pa.id IS NOT NULL) as pedidos_agendados
+          ) END
+        ) as pedidos_agendados
       FROM clientes c
       LEFT JOIN pedidos_agendados pa ON c.id = pa.cliente_id
       GROUP BY c.id, c.nombre, c.telefono, c.email
       ORDER BY c.nombre
     `;
-    const result = await pool.query(query);
-    return result.rows;
+    return db.prepare(query).all();
   }
 
-  // Obtener cliente por ID
-  async obtenerClientePorId(clienteId) {
-    const query = `
-      SELECT *
-      FROM clientes
-      WHERE id = $1
-    `;
-    const result = await pool.query(query, [clienteId]);
-    return result.rows[0];
+  obtenerClientePorId(clienteId) {
+    return db.prepare('SELECT * FROM clientes WHERE id = ?').get(clienteId);
   }
 
-  // Crear pedido agendado
-  async crearPedidoAgendado(clienteId, dia, cantidad_canales) {
+  crearPedidoAgendado(clienteId, dia, cantidad_canales) {
     const query = `
       INSERT INTO pedidos_agendados (cliente_id, dia, cantidad_canales, activo)
-      VALUES ($1, $2, $3, TRUE)
-      RETURNING *
+      VALUES (?, ?, ?, TRUE)
     `;
-    const result = await pool.query(query, [clienteId, dia, cantidad_canales]);
-    return result.rows[0];
+    const result = db.prepare(query).run(clienteId, dia, cantidad_canales);
+    return db.prepare('SELECT * FROM pedidos_agendados WHERE id = ?').get(result.lastInsertRowid);
   }
 
-  // Obtener pedidos agendados
-  async obtenerPedidosAgendados() {
+  obtenerPedidosAgendados() {
     const query = `
       SELECT
         pa.id,
@@ -79,27 +66,22 @@ class ClientesService {
         END,
         c.nombre
     `;
-    const result = await pool.query(query);
-    return result.rows;
+    return db.prepare(query).all();
   }
 
-  // Editar pedido agendado
-  async editarPedidoAgendado(pedidoAgendadoId, cantidad_canales, activo) {
+  editarPedidoAgendado(pedidoAgendadoId, cantidad_canales, activo) {
     const query = `
       UPDATE pedidos_agendados
-      SET cantidad_canales = $2, activo = $3
-      WHERE id = $1
-      RETURNING *
+      SET cantidad_canales = ?, activo = ?
+      WHERE id = ?
     `;
-    const result = await pool.query(query, [pedidoAgendadoId, cantidad_canales, activo]);
-    return result.rows[0];
+    db.prepare(query).run(cantidad_canales, activo, pedidoAgendadoId);
+    return db.prepare('SELECT * FROM pedidos_agendados WHERE id = ?').get(pedidoAgendadoId);
   }
 
-  // Eliminar pedido agendado
-  async eliminarPedidoAgendado(pedidoAgendadoId) {
-    const query = 'DELETE FROM pedidos_agendados WHERE id = $1 RETURNING id';
-    const result = await pool.query(query, [pedidoAgendadoId]);
-    return result.rows[0];
+  eliminarPedidoAgendado(pedidoAgendadoId) {
+    db.prepare('DELETE FROM pedidos_agendados WHERE id = ?').run(pedidoAgendadoId);
+    return { id: pedidoAgendadoId };
   }
 }
 
