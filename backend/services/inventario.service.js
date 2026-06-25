@@ -1,0 +1,115 @@
+const pool = require('../db/db');
+
+class InventarioService {
+  // Entrada: registra canales que llegan
+  async registrarEntrada(canales) {
+    const query = `
+      INSERT INTO canales (numero_canal, peso_lbs, clasificacion, ubicacion_riel, estado)
+      VALUES ($1, $2, $3, $4, 'en_reefer')
+      RETURNING *
+    `;
+
+    const results = [];
+    for (const canal of canales) {
+      const result = await pool.query(query, [
+        canal.numero_canal,
+        canal.peso_lbs,
+        canal.clasificacion || 'normal',
+        canal.ubicacion_riel,
+      ]);
+      results.push(result.rows[0]);
+    }
+    return results;
+  }
+
+  // Obtener inventario actual (disponible en reefer)
+  async obtenerInventarioActual() {
+    const query = `
+      SELECT
+        id,
+        numero_canal,
+        peso_lbs,
+        clasificacion,
+        ubicacion_riel,
+        fecha_entrada,
+        EXTRACT(DAY FROM (NOW() - fecha_entrada)) as dias_en_frio,
+        estado
+      FROM canales
+      WHERE estado = 'en_reefer'
+      ORDER BY ubicacion_riel, fecha_entrada ASC
+    `;
+    const result = await pool.query(query);
+    return result.rows;
+  }
+
+  // Obtener canales por riel
+  async obtenerCanalPorRiel(riel) {
+    const query = `
+      SELECT
+        id,
+        numero_canal,
+        peso_lbs,
+        clasificacion,
+        ubicacion_riel,
+        fecha_entrada,
+        EXTRACT(DAY FROM (NOW() - fecha_entrada)) as dias_en_frio
+      FROM canales
+      WHERE ubicacion_riel = $1 AND estado = 'en_reefer'
+      ORDER BY fecha_entrada ASC
+    `;
+    const result = await pool.query(query, [riel]);
+    return result.rows;
+  }
+
+  // Obtener resumen de inventario
+  async obtenerResumenInventario() {
+    const query = `
+      SELECT
+        COUNT(*) as total_canales,
+        SUM(peso_lbs) as peso_total_lbs,
+        COUNT(CASE WHEN clasificacion = 'light' THEN 1 END) as canales_light,
+        COUNT(CASE WHEN clasificacion = 'normal' THEN 1 END) as canales_normal
+      FROM canales
+      WHERE estado = 'en_reefer'
+    `;
+    const result = await pool.query(query);
+    return result.rows[0];
+  }
+
+  // Marcar canal como vendido
+  async marcarComoVendido(canalId, clienteId) {
+    const query = `
+      UPDATE canales
+      SET estado = 'vendido', fecha_salida = NOW(), cliente_id = $2
+      WHERE id = $1
+      RETURNING *
+    `;
+    const result = await pool.query(query, [canalId, clienteId]);
+    return result.rows[0];
+  }
+
+  // Registrar subproductos
+  async registrarSubproducto(tipo, cantidad, peso_lbs, ubicacion) {
+    const query = `
+      INSERT INTO subproductos (tipo, cantidad, peso_lbs, ubicacion, estado)
+      VALUES ($1, $2, $3, $4, 'disponible')
+      RETURNING *
+    `;
+    const result = await pool.query(query, [tipo, cantidad, peso_lbs, ubicacion]);
+    return result.rows[0];
+  }
+
+  // Obtener subproductos disponibles
+  async obtenerSubproductosDisponibles() {
+    const query = `
+      SELECT *
+      FROM subproductos
+      WHERE estado = 'disponible'
+      ORDER BY tipo, fecha_entrada ASC
+    `;
+    const result = await pool.query(query);
+    return result.rows;
+  }
+}
+
+module.exports = new InventarioService();
