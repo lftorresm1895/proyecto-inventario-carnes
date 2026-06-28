@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const reordenService = require('../services/reorden.service');
 
-// GET: Calcular necesidad de reorden
 router.get('/alerta', async (req, res) => {
   try {
     const hoy = req.query.fecha || new Date().toISOString().split('T')[0];
@@ -13,7 +12,6 @@ router.get('/alerta', async (req, res) => {
   }
 });
 
-// GET: Historial de demanda
 router.get('/historial', async (req, res) => {
   try {
     const dias = req.query.dias || 30;
@@ -24,7 +22,6 @@ router.get('/historial', async (req, res) => {
   }
 });
 
-// GET: Proyección de agotamiento
 router.get('/proyeccion', async (req, res) => {
   try {
     const result = await reordenService.proyectarAgotamiento();

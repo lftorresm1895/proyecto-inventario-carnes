@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const pickingService = require('../services/picking.service');
 
-// GET: Generar picking list para el día
 router.get('/lista', async (req, res) => {
   try {
     const fecha = req.query.fecha || new Date().toISOString().split('T')[0];
@@ -13,7 +12,6 @@ router.get('/lista', async (req, res) => {
   }
 });
 
-// POST: Confirmar picking (marcar canales como vendidos)
 router.post('/confirmar', async (req, res) => {
   try {
     const { cliente_id, canales_ids, fecha_pedido } = req.body;
@@ -27,7 +25,6 @@ router.post('/confirmar', async (req, res) => {
   }
 });
 
-// GET: Detalle de pedido
 router.get('/pedido/:pedidoId', async (req, res) => {
   try {
     const result = await pickingService.obtenerDetallePedido(req.params.pedidoId);

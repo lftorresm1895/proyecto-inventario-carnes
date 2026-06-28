@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const inventarioService = require('../services/inventario.service');
 
-// POST: Registrar entrada de canales
 router.post('/entrada', async (req, res) => {
   try {
     const { canales } = req.body;
@@ -16,7 +15,6 @@ router.post('/entrada', async (req, res) => {
   }
 });
 
-// GET: Obtener inventario actual
 router.get('/actual', async (req, res) => {
   try {
     const result = await inventarioService.obtenerInventarioActual();
@@ -26,7 +24,6 @@ router.get('/actual', async (req, res) => {
   }
 });
 
-// GET: Resumen de inventario
 router.get('/resumen', async (req, res) => {
   try {
     const result = await inventarioService.obtenerResumenInventario();
@@ -36,7 +33,6 @@ router.get('/resumen', async (req, res) => {
   }
 });
 
-// GET: Canales por riel
 router.get('/riel/:riel', async (req, res) => {
   try {
     const result = await inventarioService.obtenerCanalPorRiel(req.params.riel);
@@ -46,7 +42,6 @@ router.get('/riel/:riel', async (req, res) => {
   }
 });
 
-// POST: Subproductos
 router.post('/subproductos', async (req, res) => {
   try {
     const { tipo, cantidad, peso_lbs, ubicacion } = req.body;
@@ -57,7 +52,6 @@ router.post('/subproductos', async (req, res) => {
   }
 });
 
-// GET: Subproductos disponibles
 router.get('/subproductos', async (req, res) => {
   try {
     const result = await inventarioService.obtenerSubproductosDisponibles();

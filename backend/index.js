@@ -12,39 +12,41 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Inicializar DB
-initDb();
+(async () => {
+  await initDb();
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+  // Middleware
+  app.use(cors());
+  app.use(express.json());
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Backend is running' });
-});
+  // Health check
+  app.get('/health', (req, res) => {
+    res.json({ status: 'ok', message: 'Backend is running' });
+  });
 
-// Routes
-app.use('/api/inventario', inventarioRoutes);
-app.use('/api/picking', pickingRoutes);
-app.use('/api/reorden', reordenRoutes);
-app.use('/api/clientes', clientesRoutes);
+  // Routes
+  app.use('/api/inventario', inventarioRoutes);
+  app.use('/api/picking', pickingRoutes);
+  app.use('/api/reorden', reordenRoutes);
+  app.use('/api/clientes', clientesRoutes);
 
-// Error handler
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Algo salió mal' });
-});
+  // Error handler
+  app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ error: 'Algo salió mal' });
+  });
 
-// DB connection test
-app.get('/api/db-test', (req, res) => {
-  try {
-    res.json({ status: 'connected', database: 'SQLite (inventario.db)' });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-});
+  // DB connection test
+  app.get('/api/db-test', (req, res) => {
+    try {
+      res.json({ status: 'connected', database: 'SQLite (inventario.db)' });
+    } catch (error) {
+      res.status(500).json({ status: 'error', message: error.message });
+    }
+  });
 
-app.listen(PORT, () => {
-  console.log(`✅ Backend running on http://localhost:${PORT}`);
-  console.log(`📁 Database: data/inventario.db`);
-});
+  app.listen(PORT, '127.0.0.1', () => {
+    console.log(`✅ Backend running on http://localhost:${PORT}`);
+    console.log(`📁 Database: data/inventario.db`);
+  });
+})();

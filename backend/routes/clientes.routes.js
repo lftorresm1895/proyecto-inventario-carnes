@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const clientesService = require('../services/clientes.service');
 
-// POST: Crear cliente
 router.post('/', async (req, res) => {
   try {
     const { nombre, telefono, email } = req.body;
@@ -16,7 +15,6 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET: Obtener todos los clientes
 router.get('/', async (req, res) => {
   try {
     const result = await clientesService.obtenerClientes();
@@ -26,7 +24,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET: Obtener cliente por ID
 router.get('/:clienteId', async (req, res) => {
   try {
     const result = await clientesService.obtenerClientePorId(req.params.clienteId);
@@ -36,7 +33,6 @@ router.get('/:clienteId', async (req, res) => {
   }
 });
 
-// POST: Crear pedido agendado
 router.post('/:clienteId/pedidos-agendados', async (req, res) => {
   try {
     const { dia, cantidad_canales } = req.body;
@@ -54,7 +50,6 @@ router.post('/:clienteId/pedidos-agendados', async (req, res) => {
   }
 });
 
-// GET: Obtener pedidos agendados
 router.get('/agendados/lista', async (req, res) => {
   try {
     const result = await clientesService.obtenerPedidosAgendados();
@@ -64,7 +59,6 @@ router.get('/agendados/lista', async (req, res) => {
   }
 });
 
-// PUT: Editar pedido agendado
 router.put('/agendados/:pedidoAgendadoId', async (req, res) => {
   try {
     const { cantidad_canales, activo } = req.body;
@@ -79,7 +73,6 @@ router.put('/agendados/:pedidoAgendadoId', async (req, res) => {
   }
 });
 
-// DELETE: Eliminar pedido agendado
 router.delete('/agendados/:pedidoAgendadoId', async (req, res) => {
   try {
     const result = await clientesService.eliminarPedidoAgendado(req.params.pedidoAgendadoId);

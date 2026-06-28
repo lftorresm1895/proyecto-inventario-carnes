@@ -1,8 +1,8 @@
-const db = require('./db');
+const { execAsync } = require('./db');
 const fs = require('fs');
 const path = require('path');
 
-function initDb() {
+async function initDb() {
   try {
     // Crear carpeta data si no existe
     const dataDir = path.join(__dirname, '../../data');
@@ -13,21 +13,8 @@ function initDb() {
     // Leer schema
     const schema = fs.readFileSync(path.join(__dirname, './schema.sql'), 'utf-8');
 
-    // Ejecutar statements
-    const statements = schema
-      .split(';')
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
-
-    for (const stmt of statements) {
-      try {
-        db.exec(stmt);
-      } catch (error) {
-        if (!error.message.includes('already exists')) {
-          throw error;
-        }
-      }
-    }
+    // Ejecutar schema
+    await execAsync(schema);
 
     console.log('✅ Database initialized');
   } catch (error) {
