@@ -1,63 +1,63 @@
 CREATE TABLE IF NOT EXISTS clientes (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  nombre TEXT NOT NULL UNIQUE,
-  telefono TEXT,
-  email TEXT,
-  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  id SERIAL PRIMARY KEY,
+  nombre VARCHAR(255) NOT NULL UNIQUE,
+  telefono VARCHAR(20),
+  email VARCHAR(255),
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS pedidos_agendados (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   cliente_id INTEGER NOT NULL REFERENCES clientes(id),
-  dia TEXT NOT NULL,
+  dia VARCHAR(20) NOT NULL,
   cantidad_canales INTEGER NOT NULL,
   activo BOOLEAN DEFAULT TRUE,
-  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS canales (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   numero_canal INTEGER,
-  peso_lbs REAL NOT NULL,
-  clasificacion TEXT,
+  peso_lbs DECIMAL(10, 2) NOT NULL,
+  clasificacion VARCHAR(50),
   ubicacion_riel INTEGER NOT NULL,
-  fecha_entrada DATETIME DEFAULT CURRENT_TIMESTAMP,
-  fecha_salida DATETIME,
+  fecha_entrada TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  fecha_salida TIMESTAMP,
   cliente_id INTEGER REFERENCES clientes(id),
-  estado TEXT DEFAULT 'en_reefer',
+  estado VARCHAR(50) DEFAULT 'en_reefer',
   observaciones TEXT
 );
 
 CREATE TABLE IF NOT EXISTS subproductos (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  tipo TEXT NOT NULL,
+  id SERIAL PRIMARY KEY,
+  tipo VARCHAR(50) NOT NULL,
   cantidad INTEGER NOT NULL,
-  peso_lbs REAL NOT NULL,
-  ubicacion TEXT DEFAULT 'reefer',
-  fecha_entrada DATETIME DEFAULT CURRENT_TIMESTAMP,
-  fecha_salida DATETIME,
+  peso_lbs DECIMAL(10, 2) NOT NULL,
+  ubicacion VARCHAR(50) DEFAULT 'reefer',
+  fecha_entrada TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  fecha_salida TIMESTAMP,
   cliente_id INTEGER REFERENCES clientes(id),
-  estado TEXT DEFAULT 'disponible',
+  estado VARCHAR(50) DEFAULT 'disponible',
   observaciones TEXT
 );
 
 CREATE TABLE IF NOT EXISTS pedidos (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   cliente_id INTEGER NOT NULL REFERENCES clientes(id),
-  fecha_pedido TEXT NOT NULL,
+  fecha_pedido DATE NOT NULL,
   cantidad_canales INTEGER NOT NULL,
-  peso_total_lbs REAL,
-  estado TEXT DEFAULT 'pendiente',
+  peso_total_lbs DECIMAL(10, 2),
+  estado VARCHAR(50) DEFAULT 'pendiente',
   hoja_entrega_url TEXT,
-  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS pedido_detalles (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   pedido_id INTEGER NOT NULL REFERENCES pedidos(id),
   canal_id INTEGER REFERENCES canales(id),
-  peso_lbs REAL,
-  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  peso_lbs DECIMAL(10, 2),
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_canales_estado ON canales(estado);

@@ -1,23 +1,28 @@
-const { runAsync, getAsync, allAsync } = require('../db/db');
+const pool = require('../db/db');
 
 class InventarioService {
   async registrarEntrada(canales) {
+    const query = `
+      INSERT INTO canales (numero_canal, peso_lbs, clasificacion, ubicacion_riel, estado)
+      VALUES ($1, $2, $3, $4, 'en_reefer')
+      RETURNING *
+    `;
+
     const results = [];
-
     for (const canal of canales) {
-      const result = await runAsync(
-        `INSERT INTO canales (numero_canal, peso_lbs, clasificacion, ubicacion_riel, estado)
-         VALUES (?, ?, ?, ?, 'en_reefer')`,
-        [canal.numero_canal, canal.peso_lbs, canal.clasificacion || 'normal', canal.ubicacion_riel]
-      );
-      results.push({ id: result.lastInsertRowid, ...canal });
+      const result = await pool.query(query, [
+        canal.numero_canal,
+        canal.peso_lbs,
+        canal.clasificacion || 'normal',
+        canal.ubicacion_riel,
+      ]);
+      results.push(result.rows[0]);
     }
-
     return results;
   }
 
   async obtenerInventarioActual() {
-    return allAsync(`
+    const query = `
       SELECT
         id,
         numero_canal,
@@ -25,69 +30,78 @@ class InventarioService {
         clasificacion,
         ubicacion_riel,
         fecha_entrada,
-        CAST((julianday('now') - julianday(fecha_entrada)) AS INTEGER) as dias_en_frio,
+        EXTRACT(DAY FROM (NOW() - fecha_entrada))::INTEGER as dias_en_frio,
         estado
       FROM canales
       WHERE estado = 'en_reefer'
       ORDER BY ubicacion_riel, fecha_entrada ASC
-    `);
+    `;
+    const result = await pool.query(query);
+    return result.rows;
   }
 
   async obtenerCanalPorRiel(riel) {
-    return allAsync(
-      `SELECT
+    const query = `
+      SELECT
         id,
         numero_canal,
         peso_lbs,
         clasificacion,
         ubicacion_riel,
         fecha_entrada,
-        CAST((julianday('now') - julianday(fecha_entrada)) AS INTEGER) as dias_en_frio
+        EXTRACT(DAY FROM (NOW() - fecha_entrada))::INTEGER as dias_en_frio
       FROM canales
-      WHERE ubicacion_riel = ? AND estado = 'en_reefer'
-      ORDER BY fecha_entrada ASC`,
-      [riel]
-    );
+      WHERE ubicacion_riel = $1 AND estado = 'en_reefer'
+      ORDER BY fecha_entrada ASC
+    `;
+    const result = await pool.query(query, [riel]);
+    return result.rows;
   }
 
   async obtenerResumenInventario() {
-    return getAsync(`
+    const query = `
       SELECT
         COUNT(*) as total_canales,
-        ROUND(SUM(peso_lbs), 2) as peso_total_lbs,
+        ROUND(SUM(peso_lbs)::numeric, 2) as peso_total_lbs,
         COUNT(CASE WHEN clasificacion = 'light' THEN 1 END) as canales_light,
         COUNT(CASE WHEN clasificacion = 'normal' THEN 1 END) as canales_normal
       FROM canales
       WHERE estado = 'en_reefer'
-    `);
+    `;
+    const result = await pool.query(query);
+    return result.rows[0];
   }
 
   async marcarComoVendido(canalId, clienteId) {
-    await runAsync(
-      `UPDATE canales
-       SET estado = 'vendido', fecha_salida = datetime('now'), cliente_id = ?
-       WHERE id = ?`,
-      [clienteId, canalId]
-    );
-    return getAsync('SELECT * FROM canales WHERE id = ?', [canalId]);
+    const query = `
+      UPDATE canales
+      SET estado = 'vendido', fecha_salida = NOW(), cliente_id = $2
+      WHERE id = $1
+      RETURNING *
+    `;
+    const result = await pool.query(query, [canalId, clienteId]);
+    return result.rows[0];
   }
 
   async registrarSubproducto(tipo, cantidad, peso_lbs, ubicacion) {
-    const result = await runAsync(
-      `INSERT INTO subproductos (tipo, cantidad, peso_lbs, ubicacion, estado)
-       VALUES (?, ?, ?, ?, 'disponible')`,
-      [tipo, cantidad, peso_lbs, ubicacion]
-    );
-    return getAsync('SELECT * FROM subproductos WHERE id = ?', [result.lastInsertRowid]);
+    const query = `
+      INSERT INTO subproductos (tipo, cantidad, peso_lbs, ubicacion, estado)
+      VALUES ($1, $2, $3, $4, 'disponible')
+      RETURNING *
+    `;
+    const result = await pool.query(query, [tipo, cantidad, peso_lbs, ubicacion]);
+    return result.rows[0];
   }
 
   async obtenerSubproductosDisponibles() {
-    return allAsync(`
+    const query = `
       SELECT *
       FROM subproductos
       WHERE estado = 'disponible'
       ORDER BY tipo, fecha_entrada ASC
-    `);
+    `;
+    const result = await pool.query(query);
+    return result.rows;
   }
 }
 

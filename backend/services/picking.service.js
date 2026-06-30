@@ -1,4 +1,4 @@
-const { runAsync, getAsync, allAsync } = require('../db/db');
+const pool = require('../db/db');
 
 class PickingService {
   async generarPickingList(fecha) {
@@ -6,19 +6,21 @@ class PickingService {
     const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
     const dia_nombre = dias[fecha_date.getDay()];
 
-    const pedidosAgendados = await allAsync(
-      `SELECT
+    const queryPedidosAgendados = `
+      SELECT
         c.id as cliente_id,
         c.nombre,
         c.telefono,
         pa.cantidad_canales
       FROM pedidos_agendados pa
       JOIN clientes c ON pa.cliente_id = c.id
-      WHERE pa.dia = ? AND pa.activo = TRUE`,
-      [dia_nombre]
-    );
+      WHERE pa.dia = $1 AND pa.activo = TRUE
+    `;
 
-    const canalesDisponibles = await allAsync(`
+    const pedidosResult = await pool.query(queryPedidosAgendados, [dia_nombre]);
+    const pedidosAgendados = pedidosResult.rows;
+
+    const queryCanalesDisponibles = `
       SELECT
         id,
         numero_canal,
@@ -26,11 +28,14 @@ class PickingService {
         clasificacion,
         ubicacion_riel,
         fecha_entrada,
-        CAST((julianday('now') - julianday(fecha_entrada)) AS INTEGER) as dias_en_frio
+        EXTRACT(DAY FROM (NOW() - fecha_entrada))::INTEGER as dias_en_frio
       FROM canales
       WHERE estado = 'en_reefer'
       ORDER BY ubicacion_riel, fecha_entrada DESC
-    `);
+    `;
+
+    const canalesResult = await pool.query(queryCanalesDisponibles);
+    const canalesDisponibles = canalesResult.rows;
 
     const pickingList = [];
     let canalIndex = 0;
@@ -60,33 +65,37 @@ class PickingService {
 
   async confirmarPicking(clienteId, canalesIds, fecha_pedido) {
     try {
-      const pedidoResult = await runAsync(
-        `INSERT INTO pedidos (cliente_id, fecha_pedido, cantidad_canales)
-         VALUES (?, ?, ?)`,
-        [clienteId, fecha_pedido, canalesIds.length]
-      );
+      const queryPedido = `
+        INSERT INTO pedidos (cliente_id, fecha_pedido, cantidad_canales)
+        VALUES ($1, $2, $3)
+        RETURNING id
+      `;
 
-      const pedidoId = pedidoResult.lastInsertRowid;
+      const cantidad = canalesIds.length;
+      const pedidoResult = await pool.query(queryPedido, [clienteId, fecha_pedido, cantidad]);
+      const pedidoId = pedidoResult.rows[0].id;
+
       let pesoTotal = 0;
-
       for (const canalId of canalesIds) {
-        await runAsync(
-          `UPDATE canales
-           SET estado = 'vendido', fecha_salida = datetime('now'), cliente_id = ?
-           WHERE id = ?`,
-          [clienteId, canalId]
-        );
+        const queryActualizar = `
+          UPDATE canales
+          SET estado = 'vendido', fecha_salida = NOW(), cliente_id = $2
+          WHERE id = $1
+          RETURNING peso_lbs
+        `;
+        const canalResult = await pool.query(queryActualizar, [canalId, clienteId]);
+        pesoTotal += parseFloat(canalResult.rows[0].peso_lbs);
 
-        const canal = await getAsync('SELECT peso_lbs FROM canales WHERE id = ?', [canalId]);
-        pesoTotal += parseFloat(canal.peso_lbs);
-
-        await runAsync(
-          'INSERT INTO pedido_detalles (pedido_id, canal_id, peso_lbs) VALUES (?, ?, ?)',
-          [pedidoId, canalId, canal.peso_lbs]
+        await pool.query(
+          'INSERT INTO pedido_detalles (pedido_id, canal_id, peso_lbs) VALUES ($1, $2, $3)',
+          [pedidoId, canalId, canalResult.rows[0].peso_lbs]
         );
       }
 
-      await runAsync('UPDATE pedidos SET peso_total_lbs = ? WHERE id = ?', [pesoTotal, pedidoId]);
+      await pool.query(
+        'UPDATE pedidos SET peso_total_lbs = $1 WHERE id = $2',
+        [pesoTotal, pedidoId]
+      );
 
       return { pedidoId, pesoTotal };
     } catch (error) {
@@ -95,8 +104,8 @@ class PickingService {
   }
 
   async obtenerDetallePedido(pedidoId) {
-    return getAsync(
-      `SELECT
+    const query = `
+      SELECT
         p.id,
         c.nombre as cliente,
         p.fecha_pedido,
@@ -105,9 +114,10 @@ class PickingService {
         p.estado
       FROM pedidos p
       JOIN clientes c ON p.cliente_id = c.id
-      WHERE p.id = ?`,
-      [pedidoId]
-    );
+      WHERE p.id = $1
+    `;
+    const result = await pool.query(query, [pedidoId]);
+    return result.rows[0];
   }
 }
 
