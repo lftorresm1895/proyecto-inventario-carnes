@@ -1,0 +1,165 @@
+.picking-container {
+  background: white;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.picking-container h1 {
+  color: #2c3e50;
+  margin-bottom: 1.5rem;
+  font-size: 2rem;
+}
+
+.fecha-selector {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.fecha-selector input {
+  padding: 0.6rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 1rem;
+  flex: 1;
+  max-width: 200px;
+}
+
+.fecha-selector button {
+  padding: 0.6rem 1.2rem;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.3s ease;
+}
+
+.fecha-selector button:hover {
+  background: #2980b9;
+}
+
+.clientes-list {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.cliente-card {
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  background: #fafafa;
+  transition: all 0.3s ease;
+}
+
+.cliente-card:hover {
+  border-color: #3498db;
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.1);
+}
+
+.cliente-card.completed {
+  background: #e8f8f5;
+  border-color: #27ae60;
+}
+
+.cliente-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.cliente-header h2 {
+  color: #2c3e50;
+  font-size: 1.4rem;
+}
+
+.telefono {
+  background: #ecf0f1;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  color: #7f8c8d;
+}
+
+.pedido-info {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+  padding: 0.8rem;
+  background: white;
+  border-radius: 4px;
+  border-left: 4px solid #3498db;
+}
+
+.pedido-info span {
+  color: #2c3e50;
+  font-weight: 500;
+}
+
+.canales-selection {
+  margin-bottom: 1.5rem;
+}
+
+.canales-selection h3 {
+  color: #2c3e50;
+  margin-bottom: 0.8rem;
+  font-size: 1.1rem;
+}
+
+.canal-checkbox {
+  display: flex;
+  align-items: center;
+  padding: 0.6rem;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.canal-checkbox:hover {
+  background: #ecf0f1;
+}
+
+.canal-checkbox input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  margin-right: 0.8rem;
+  cursor: pointer;
+}
+
+.canal-info {
+  flex: 1;
+  color: #2c3e50;
+  font-size: 0.95rem;
+}
+
+.btn-confirmar {
+  width: 100%;
+  padding: 0.8rem;
+  background: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-confirmar:hover {
+  background: #229954;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+}
+
+.completado {
+  padding: 0.8rem;
+  background: #27ae60;
+  color: white;
+  border-radius: 4px;
+  text-align: center;
+  font-weight: 600;
+}
