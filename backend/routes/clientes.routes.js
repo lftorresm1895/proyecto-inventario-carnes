@@ -4,14 +4,40 @@ const clientesService = require('../services/clientes.service');
 
 router.post('/', async (req, res) => {
   try {
-    const { nombre, telefono, email, preferencia, precio_lb, cuenta_activa } = req.body;
+    const { nombre, telefono, email, preferencia, precio_lb, cuenta_activa, pedidos_agendados } = req.body;
     if (!nombre) {
       return res.status(400).json({ error: 'El nombre es requerido' });
     }
     const result = await clientesService.crearCliente(
       nombre, telefono, email, preferencia,
       parseFloat(precio_lb) || 0,
-      !!cuenta_activa
+      !!cuenta_activa,
+      pedidos_agendados || []
+    );
+    res.json({ success: true, cliente: result });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT: Editar cliente (datos + días de pedido)
+router.put('/:clienteId', async (req, res) => {
+  try {
+    const { nombre, telefono, email, preferencia, precio_lb, cuenta_activa, pedidos_agendados } = req.body;
+    if (!nombre) {
+      return res.status(400).json({ error: 'El nombre es requerido' });
+    }
+    const result = await clientesService.editarCliente(
+      req.params.clienteId,
+      {
+        nombre,
+        telefono,
+        email,
+        preferencia,
+        precio_lb: parseFloat(precio_lb) || 0,
+        cuenta_activa: !!cuenta_activa,
+      },
+      Array.isArray(pedidos_agendados) ? pedidos_agendados : null
     );
     res.json({ success: true, cliente: result });
   } catch (error) {

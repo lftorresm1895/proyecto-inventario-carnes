@@ -269,3 +269,99 @@
 .mov.abono .mov-monto {
   color: #27ae60;
 }
+
+.dias-grid-section {
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.dias-titulo {
+  display: block;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 0.8rem;
+}
+
+.dias-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.dia-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.dia-item span {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.9rem;
+}
+
+.dia-item input {
+  padding: 0.6rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 1rem;
+  text-align: center;
+}
+
+.dia-item input:focus {
+  border-color: #3498db;
+  outline: none;
+}
+
+.flag-hint {
+  color: #7f8c8d;
+  font-size: 0.8rem;
+}
+
+.form-acciones {
+  display: flex;
+  gap: 0.8rem;
+}
+
+.form-acciones button {
+  flex: 1;
+}
+
+.btn-cancelar {
+  background: #95a5a6 !important;
+}
+
+.btn-cancelar:hover {
+  background: #7f8c8d !important;
+}
+
+.cliente-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-editar {
+  padding: 0.3rem 0.7rem;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.btn-editar:hover {
+  background: #2980b9;
+}
+
+.sin-pedidos {
+  color: #95a5a6 !important;
+  font-style: italic;
+  font-size: 0.85rem !important;
+}

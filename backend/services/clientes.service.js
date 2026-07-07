@@ -1,14 +1,49 @@
 const pool = require('../db/db');
 
 class ClientesService {
-  async crearCliente(nombre, telefono, email, preferencia = 'cualquiera', precio_lb = 0, cuenta_activa = false) {
+  async crearCliente(nombre, telefono, email, preferencia = 'cualquiera', precio_lb = 0, cuenta_activa = false, pedidosAgendados = []) {
     const query = `
       INSERT INTO clientes (nombre, telefono, email, preferencia, precio_lb, cuenta_activa)
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
     const result = await pool.query(query, [nombre, telefono, email, preferencia, precio_lb, cuenta_activa]);
+    const cliente = result.rows[0];
+
+    if (Array.isArray(pedidosAgendados) && pedidosAgendados.length > 0) {
+      await this.reemplazarPedidosAgendados(cliente.id, pedidosAgendados);
+    }
+    return cliente;
+  }
+
+  async editarCliente(clienteId, { nombre, telefono, email, preferencia, precio_lb, cuenta_activa }, pedidosAgendados = null) {
+    const query = `
+      UPDATE clientes
+      SET nombre = $2, telefono = $3, email = $4, preferencia = $5, precio_lb = $6, cuenta_activa = $7
+      WHERE id = $1
+      RETURNING *
+    `;
+    const result = await pool.query(query, [
+      clienteId, nombre, telefono, email, preferencia, precio_lb, cuenta_activa,
+    ]);
+
+    if (Array.isArray(pedidosAgendados)) {
+      await this.reemplazarPedidosAgendados(clienteId, pedidosAgendados);
+    }
     return result.rows[0];
+  }
+
+  // Borra los pedidos agendados del cliente y los reemplaza con la lista nueva
+  async reemplazarPedidosAgendados(clienteId, pedidos) {
+    await pool.query('DELETE FROM pedidos_agendados WHERE cliente_id = $1', [clienteId]);
+    for (const p of pedidos) {
+      if (!p.dia || !p.cantidad_canales || parseInt(p.cantidad_canales) <= 0) continue;
+      await pool.query(
+        `INSERT INTO pedidos_agendados (cliente_id, dia, cantidad_canales, activo)
+         VALUES ($1, $2, $3, TRUE)`,
+        [clienteId, p.dia, parseInt(p.cantidad_canales)]
+      );
+    }
   }
 
   async obtenerCuenta(clienteId) {

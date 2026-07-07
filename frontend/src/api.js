@@ -90,10 +90,16 @@ export const api = {
   // Clientes
   obtenerClientes: () => authFetch('/clientes'),
 
-  crearCliente: (nombre, telefono, email, preferencia, precio_lb, cuenta_activa) =>
+  crearCliente: (datos) =>
     authFetch('/clientes', {
       method: 'POST',
-      body: JSON.stringify({ nombre, telefono, email, preferencia, precio_lb, cuenta_activa }),
+      body: JSON.stringify(datos),
+    }),
+
+  editarCliente: (clienteId, datos) =>
+    authFetch(`/clientes/${clienteId}`, {
+      method: 'PUT',
+      body: JSON.stringify(datos),
     }),
 
   crearPedidoAgendado: (clienteId, dia, cantidad) =>

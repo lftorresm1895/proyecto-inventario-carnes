@@ -2,21 +2,28 @@ import { useState, useEffect } from 'react';
 import { api } from '../api';
 import '../styles/ClientManager.css';
 
+const DIAS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+
+const diasVacios = () =>
+  DIAS.reduce((acc, d) => ({ ...acc, [d]: '' }), {});
+
 export function ClientManager() {
   const [clientes, setClientes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Formulario (crear o editar)
+  const [editandoId, setEditandoId] = useState(null); // null = creando
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
   const [email, setEmail] = useState('');
   const [preferencia, setPreferencia] = useState('cualquiera');
   const [precioLb, setPrecioLb] = useState('');
   const [cuentaActiva, setCuentaActiva] = useState(false);
-  const [selectedCliente, setSelectedCliente] = useState('');
-  const [dia, setDia] = useState('lunes');
-  const [cantidad, setCantidad] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [diasPedido, setDiasPedido] = useState(diasVacios());
+  const [guardando, setGuardando] = useState(false);
 
   // Cuenta expandida
-  const [cuentaAbierta, setCuentaAbierta] = useState(null); // cliente id
+  const [cuentaAbierta, setCuentaAbierta] = useState(null);
   const [cuentaData, setCuentaData] = useState(null);
   const [montoAbono, setMontoAbono] = useState('');
   const [descAbono, setDescAbono] = useState('');
@@ -36,42 +43,79 @@ export function ClientManager() {
     }
   };
 
-  const crearCliente = async (e) => {
+  const limpiarFormulario = () => {
+    setEditandoId(null);
+    setNombre('');
+    setTelefono('');
+    setEmail('');
+    setPreferencia('cualquiera');
+    setPrecioLb('');
+    setCuentaActiva(false);
+    setDiasPedido(diasVacios());
+  };
+
+  const empezarEdicion = (cliente) => {
+    setEditandoId(cliente.id);
+    setNombre(cliente.nombre || '');
+    setTelefono(cliente.telefono || '');
+    setEmail(cliente.email || '');
+    setPreferencia(cliente.preferencia || 'cualquiera');
+    setPrecioLb(cliente.precio_lb > 0 ? String(cliente.precio_lb) : '');
+    setCuentaActiva(!!cliente.cuenta_activa);
+
+    const dias = diasVacios();
+    (cliente.pedidos_agendados || [])
+      .filter((p) => p && p.activo !== false)
+      .forEach((p) => {
+        if (dias[p.dia] !== undefined) dias[p.dia] = String(p.cantidad_canales);
+      });
+    setDiasPedido(dias);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const guardarCliente = async (e) => {
     e.preventDefault();
     if (!nombre) {
       alert('Ingresa nombre del cliente');
       return;
     }
 
+    const pedidos_agendados = DIAS
+      .filter((d) => diasPedido[d] && parseInt(diasPedido[d]) > 0)
+      .map((d) => ({ dia: d, cantidad_canales: parseInt(diasPedido[d]) }));
+
+    const datos = {
+      nombre,
+      telefono,
+      email,
+      preferencia,
+      precio_lb: precioLb,
+      cuenta_activa: cuentaActiva,
+      pedidos_agendados,
+    };
+
     try {
-      await api.crearCliente(nombre, telefono, email, preferencia, precioLb, cuentaActiva);
-      setNombre('');
-      setTelefono('');
-      setEmail('');
-      setPreferencia('cualquiera');
-      setPrecioLb('');
-      setCuentaActiva(false);
-      await cargarClientes();
-      alert('✅ Cliente creado');
+      setGuardando(true);
+      const res = editandoId
+        ? await api.editarCliente(editandoId, datos)
+        : await api.crearCliente(datos);
+
+      if (res.success) {
+        limpiarFormulario();
+        await cargarClientes();
+        alert(editandoId ? '✅ Cliente actualizado' : '✅ Cliente creado');
+      } else {
+        alert('Error: ' + (res.error || 'desconocido'));
+      }
     } catch (err) {
       alert('Error: ' + err.message);
+    } finally {
+      setGuardando(false);
     }
   };
 
-  const crearPedidoAgendado = async () => {
-    if (!selectedCliente || !cantidad) {
-      alert('Selecciona cliente y cantidad');
-      return;
-    }
-
-    try {
-      await api.crearPedidoAgendado(selectedCliente, dia, parseInt(cantidad));
-      setCantidad('');
-      await cargarClientes();
-      alert('✅ Pedido agendado');
-    } catch (err) {
-      alert('Error: ' + err.message);
-    }
+  const setCantidadDia = (dia, valor) => {
+    setDiasPedido((prev) => ({ ...prev, [dia]: valor }));
   };
 
   const verCuenta = async (clienteId) => {
@@ -109,14 +153,15 @@ export function ClientManager() {
   };
 
   const fmtMonto = (m) => `$${parseFloat(m).toFixed(2)}`;
+  const capitalizar = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
   if (loading) return <div className="loading">Cargando...</div>;
 
   return (
     <div className="client-manager">
       <div className="form-section">
-        <h2>➕ Nuevo Cliente</h2>
-        <form onSubmit={crearCliente}>
+        <h2>{editandoId ? '✏️ Editando Cliente' : '➕ Nuevo Cliente'}</h2>
+        <form onSubmit={guardarCliente}>
           <input
             type="text"
             placeholder="Nombre cliente"
@@ -137,7 +182,7 @@ export function ClientManager() {
           />
           <select value={preferencia} onChange={(e) => setPreferencia(e.target.value)}>
             <option value="cualquiera">Preferencia: Cualquiera</option>
-            <option value="light">Preferencia: Solo Light (sin papada)</option>
+            <option value="light">Preferencia: Solo Light (sin grasa/papada)</option>
             <option value="normal">Preferencia: Solo Normal</option>
           </select>
           <input
@@ -156,41 +201,41 @@ export function ClientManager() {
             />
             Llevar cuenta corriente (cargos automáticos al confirmar pedidos)
           </label>
-          <button type="submit">Crear Cliente</button>
+
+          <div className="dias-grid-section">
+            <label className="dias-titulo">📅 Días de pedido (canales por día):</label>
+            <div className="dias-grid">
+              {DIAS.map((dia) => (
+                <div key={dia} className="dia-item">
+                  <span>{capitalizar(dia)}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={diasPedido[dia]}
+                    onChange={(e) => setCantidadDia(dia, e.target.value)}
+                  />
+                </div>
+              ))}
+            </div>
+            <small className="flag-hint">Deja en blanco los días que no pide</small>
+          </div>
+
+          <div className="form-acciones">
+            <button type="submit" disabled={guardando}>
+              {guardando
+                ? 'Guardando...'
+                : editandoId
+                ? '💾 Guardar Cambios'
+                : 'Crear Cliente'}
+            </button>
+            {editandoId && (
+              <button type="button" className="btn-cancelar" onClick={limpiarFormulario}>
+                Cancelar
+              </button>
+            )}
+          </div>
         </form>
-      </div>
-
-      <div className="form-section">
-        <h2>📅 Pedido Agendado</h2>
-        <div className="form-group">
-          <select value={selectedCliente} onChange={(e) => setSelectedCliente(e.target.value)}>
-            <option value="">Selecciona cliente...</option>
-            {clientes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nombre}
-              </option>
-            ))}
-          </select>
-
-          <select value={dia} onChange={(e) => setDia(e.target.value)}>
-            <option value="lunes">Lunes</option>
-            <option value="martes">Martes</option>
-            <option value="miercoles">Miércoles</option>
-            <option value="jueves">Jueves</option>
-            <option value="viernes">Viernes</option>
-            <option value="sabado">Sábado</option>
-          </select>
-
-          <input
-            type="number"
-            placeholder="Canales"
-            value={cantidad}
-            onChange={(e) => setCantidad(e.target.value)}
-            min="1"
-          />
-
-          <button onClick={crearPedidoAgendado}>Agendar</button>
-        </div>
       </div>
 
       <div className="clientes-section">
@@ -201,7 +246,12 @@ export function ClientManager() {
           <div className="clientes-grid">
             {clientes.map((cliente) => (
               <div key={cliente.id} className="cliente-item">
-                <h3>{cliente.nombre}</h3>
+                <div className="cliente-top">
+                  <h3>{cliente.nombre}</h3>
+                  <button className="btn-editar" onClick={() => empezarEdicion(cliente)}>
+                    ✏️ Editar
+                  </button>
+                </div>
                 <p>{cliente.telefono}</p>
 
                 {cliente.preferencia && cliente.preferencia !== 'cualquiera' && (
@@ -214,16 +264,18 @@ export function ClientManager() {
                   <p className="precio-linea">💵 {fmtMonto(cliente.precio_lb)}/lb</p>
                 )}
 
-                {cliente.pedidos_agendados && cliente.pedidos_agendados.length > 0 && (
+                {cliente.pedidos_agendados && cliente.pedidos_agendados.filter((p) => p).length > 0 ? (
                   <div className="pedidos">
                     {cliente.pedidos_agendados
                       .filter((p) => p)
                       .map((p, i) => (
                         <span key={i} className="pedido-tag">
-                          {p.dia?.charAt(0).toUpperCase() + p.dia?.slice(1)}: {p.cantidad_canales}
+                          {capitalizar(p.dia || '')}: {p.cantidad_canales}
                         </span>
                       ))}
                   </div>
+                ) : (
+                  <p className="sin-pedidos">Sin días de pedido — edita para agregar</p>
                 )}
 
                 {cliente.cuenta_activa && (
