@@ -1,87 +1,118 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_URL = 'https://inventario-carnes-backend.onrender.com/api';
+
+function getToken() {
+  return localStorage.getItem('token');
+}
+
+export function getUsuario() {
+  try {
+    return JSON.parse(localStorage.getItem('usuario'));
+  } catch {
+    return null;
+  }
+}
+
+export function logout() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('usuario');
+  window.location.reload();
+}
+
+async function authFetch(path, options = {}) {
+  const res = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
+      ...(options.headers || {}),
+    },
+  });
+
+  if (res.status === 401) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('usuario');
+    window.location.reload();
+    throw new Error('Sesión expirada');
+  }
+
+  return res.json();
+}
 
 export const api = {
-  // Inventario
-  registrarEntrada: async (canales) => {
-    const res = await fetch(`${API_URL}/inventario/entrada`, {
+  // Auth
+  login: async (username, password) => {
+    const res = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ canales }),
+      body: JSON.stringify({ username, password }),
     });
     return res.json();
   },
 
-  obtenerInventario: async () => {
-    const res = await fetch(`${API_URL}/inventario/actual`);
-    return res.json();
-  },
+  crearUsuario: (nombre, username, password, rol) =>
+    authFetch('/auth/usuarios', {
+      method: 'POST',
+      body: JSON.stringify({ nombre, username, password, rol }),
+    }),
 
-  obtenerResumen: async () => {
-    const res = await fetch(`${API_URL}/inventario/resumen`);
-    return res.json();
-  },
+  obtenerUsuarios: () => authFetch('/auth/usuarios'),
 
-  sugerirRiel: async () => {
-    const res = await fetch(`${API_URL}/inventario/sugerir-riel`);
-    return res.json();
-  },
+  cambiarPassword: (password_actual, password_nueva) =>
+    authFetch('/auth/password', {
+      method: 'PUT',
+      body: JSON.stringify({ password_actual, password_nueva }),
+    }),
+
+  // Inventario
+  registrarEntrada: (canales) =>
+    authFetch('/inventario/entrada', {
+      method: 'POST',
+      body: JSON.stringify({ canales }),
+    }),
+
+  obtenerInventario: () => authFetch('/inventario/actual'),
+  obtenerResumen: () => authFetch('/inventario/resumen'),
+  sugerirRiel: () => authFetch('/inventario/sugerir-riel'),
 
   // Picking
-  obtenerPickingList: async (fecha) => {
-    const res = await fetch(`${API_URL}/picking/lista?fecha=${fecha}`);
-    return res.json();
-  },
+  obtenerPickingList: (fecha) => authFetch(`/picking/lista?fecha=${fecha}`),
 
-  confirmarPicking: async (clienteId, canalesIds, fechaPedido) => {
-    const res = await fetch(`${API_URL}/picking/confirmar`, {
+  confirmarPicking: (clienteId, canalesIds, fechaPedido) =>
+    authFetch('/picking/confirmar', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         cliente_id: clienteId,
         canales_ids: canalesIds,
         fecha_pedido: fechaPedido,
       }),
-    });
-    return res.json();
-  },
+    }),
 
   // Clientes
-  obtenerClientes: async () => {
-    const res = await fetch(`${API_URL}/clientes`);
-    return res.json();
-  },
+  obtenerClientes: () => authFetch('/clientes'),
 
-  crearCliente: async (nombre, telefono, email, preferencia) => {
-    const res = await fetch(`${API_URL}/clientes`, {
+  crearCliente: (nombre, telefono, email, preferencia, precio_lb, cuenta_activa) =>
+    authFetch('/clientes', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre, telefono, email, preferencia }),
-    });
-    return res.json();
-  },
+      body: JSON.stringify({ nombre, telefono, email, preferencia, precio_lb, cuenta_activa }),
+    }),
 
-  crearPedidoAgendado: async (clienteId, dia, cantidad) => {
-    const res = await fetch(`${API_URL}/clientes/${clienteId}/pedidos-agendados`, {
+  crearPedidoAgendado: (clienteId, dia, cantidad) =>
+    authFetch(`/clientes/${clienteId}/pedidos-agendados`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ dia, cantidad_canales: cantidad }),
-    });
-    return res.json();
-  },
+    }),
 
-  obtenerPedidosAgendados: async () => {
-    const res = await fetch(`${API_URL}/clientes/agendados/lista`);
-    return res.json();
-  },
+  obtenerPedidosAgendados: () => authFetch('/clientes/agendados/lista'),
+
+  obtenerCuenta: (clienteId) => authFetch(`/clientes/${clienteId}/cuenta`),
+
+  registrarAbono: (clienteId, monto, descripcion) =>
+    authFetch(`/clientes/${clienteId}/abono`, {
+      method: 'POST',
+      body: JSON.stringify({ monto, descripcion }),
+    }),
 
   // Reorden
-  obtenerAlertaReorden: async () => {
-    const res = await fetch(`${API_URL}/reorden/alerta`);
-    return res.json();
-  },
-
-  obtenerProyeccion: async () => {
-    const res = await fetch(`${API_URL}/reorden/proyeccion`);
-    return res.json();
-  },
+  obtenerAlertaReorden: () => authFetch('/reorden/alerta'),
+  obtenerProyeccion: () => authFetch('/reorden/proyeccion'),
 };

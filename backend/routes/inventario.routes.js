@@ -8,7 +8,7 @@ router.post('/entrada', async (req, res) => {
     if (!canales || !Array.isArray(canales)) {
       return res.status(400).json({ error: 'Se requiere array de canales' });
     }
-    const result = await inventarioService.registrarEntrada(canales);
+    const result = await inventarioService.registrarEntrada(canales, req.usuario?.username);
     res.json({ success: true, canales: result });
   } catch (error) {
     res.status(500).json({ error: error.message });

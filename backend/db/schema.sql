@@ -1,3 +1,13 @@
+CREATE TABLE IF NOT EXISTS usuarios (
+  id SERIAL PRIMARY KEY,
+  nombre VARCHAR(255) NOT NULL,
+  username VARCHAR(100) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  rol VARCHAR(50) DEFAULT 'socio',
+  activo BOOLEAN DEFAULT TRUE,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS clientes (
   id SERIAL PRIMARY KEY,
   nombre VARCHAR(255) NOT NULL UNIQUE,
@@ -61,6 +71,18 @@ CREATE TABLE IF NOT EXISTS pedido_detalles (
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS cuenta_movimientos (
+  id SERIAL PRIMARY KEY,
+  cliente_id INTEGER NOT NULL REFERENCES clientes(id),
+  tipo VARCHAR(20) NOT NULL,
+  monto DECIMAL(12, 2) NOT NULL,
+  descripcion TEXT,
+  pedido_id INTEGER REFERENCES pedidos(id),
+  creado_por VARCHAR(100),
+  fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_movimientos_cliente ON cuenta_movimientos(cliente_id);
 CREATE INDEX IF NOT EXISTS idx_canales_estado ON canales(estado);
 CREATE INDEX IF NOT EXISTS idx_canales_riel ON canales(ubicacion_riel);
 CREATE INDEX IF NOT EXISTS idx_canales_fecha ON canales(fecha_entrada);

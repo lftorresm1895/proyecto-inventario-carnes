@@ -4,12 +4,45 @@ const clientesService = require('../services/clientes.service');
 
 router.post('/', async (req, res) => {
   try {
-    const { nombre, telefono, email, preferencia } = req.body;
+    const { nombre, telefono, email, preferencia, precio_lb, cuenta_activa } = req.body;
     if (!nombre) {
       return res.status(400).json({ error: 'El nombre es requerido' });
     }
-    const result = await clientesService.crearCliente(nombre, telefono, email, preferencia);
+    const result = await clientesService.crearCliente(
+      nombre, telefono, email, preferencia,
+      parseFloat(precio_lb) || 0,
+      !!cuenta_activa
+    );
     res.json({ success: true, cliente: result });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET: Cuenta del cliente (saldo + movimientos)
+router.get('/:clienteId/cuenta', async (req, res) => {
+  try {
+    const result = await clientesService.obtenerCuenta(req.params.clienteId);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST: Registrar abono
+router.post('/:clienteId/abono', async (req, res) => {
+  try {
+    const { monto, descripcion } = req.body;
+    if (!monto || parseFloat(monto) <= 0) {
+      return res.status(400).json({ error: 'Monto inválido' });
+    }
+    const result = await clientesService.registrarAbono(
+      req.params.clienteId,
+      parseFloat(monto),
+      descripcion,
+      req.usuario?.username
+    );
+    res.json({ success: true, movimiento: result });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

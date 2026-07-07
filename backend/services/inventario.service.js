@@ -1,10 +1,10 @@
 const pool = require('../db/db');
 
 class InventarioService {
-  async registrarEntrada(canales) {
+  async registrarEntrada(canales, usuario = null) {
     const query = `
-      INSERT INTO canales (numero_canal, peso_lbs, clasificacion, ubicacion_riel, estado)
-      VALUES ($1, $2, $3, $4, 'en_reefer')
+      INSERT INTO canales (numero_canal, peso_lbs, clasificacion, ubicacion_riel, estado, creado_por)
+      VALUES ($1, $2, $3, $4, 'en_reefer', $5)
       RETURNING *
     `;
 
@@ -15,6 +15,7 @@ class InventarioService {
         canal.peso_lbs,
         canal.clasificacion || 'normal',
         canal.ubicacion_riel,
+        usuario,
       ]);
       results.push(result.rows[0]);
     }

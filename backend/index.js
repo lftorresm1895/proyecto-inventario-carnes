@@ -7,6 +7,8 @@ const inventarioRoutes = require('./routes/inventario.routes');
 const pickingRoutes = require('./routes/picking.routes');
 const reordenRoutes = require('./routes/reorden.routes');
 const clientesRoutes = require('./routes/clientes.routes');
+const authRoutes = require('./routes/auth.routes');
+const { authMiddleware } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -25,10 +27,11 @@ const PORT = process.env.PORT || 3001;
   });
 
   // Routes
-  app.use('/api/inventario', inventarioRoutes);
-  app.use('/api/picking', pickingRoutes);
-  app.use('/api/reorden', reordenRoutes);
-  app.use('/api/clientes', clientesRoutes);
+  app.use('/api/auth', authRoutes);
+  app.use('/api/inventario', authMiddleware, inventarioRoutes);
+  app.use('/api/picking', authMiddleware, pickingRoutes);
+  app.use('/api/reorden', authMiddleware, reordenRoutes);
+  app.use('/api/clientes', authMiddleware, clientesRoutes);
 
   // Error handler
   app.use((err, req, res, next) => {

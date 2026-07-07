@@ -81,16 +81,16 @@ class PickingService {
     return pickingList;
   }
 
-  async confirmarPicking(clienteId, canalesIds, fecha_pedido) {
+  async confirmarPicking(clienteId, canalesIds, fecha_pedido, usuario = null) {
     try {
       const queryPedido = `
-        INSERT INTO pedidos (cliente_id, fecha_pedido, cantidad_canales)
-        VALUES ($1, $2, $3)
+        INSERT INTO pedidos (cliente_id, fecha_pedido, cantidad_canales, creado_por)
+        VALUES ($1, $2, $3, $4)
         RETURNING id
       `;
 
       const cantidad = canalesIds.length;
-      const pedidoResult = await pool.query(queryPedido, [clienteId, fecha_pedido, cantidad]);
+      const pedidoResult = await pool.query(queryPedido, [clienteId, fecha_pedido, cantidad, usuario]);
       const pedidoId = pedidoResult.rows[0].id;
 
       let pesoTotal = 0;
@@ -115,7 +115,31 @@ class PickingService {
         [pesoTotal, pedidoId]
       );
 
-      return { pedidoId, pesoTotal };
+      // Cargo automático a la cuenta si el cliente tiene cuenta activa y precio por libra
+      let cargo = null;
+      const clienteResult = await pool.query(
+        'SELECT nombre, precio_lb, cuenta_activa FROM clientes WHERE id = $1',
+        [clienteId]
+      );
+      const cliente = clienteResult.rows[0];
+
+      if (cliente?.cuenta_activa && parseFloat(cliente.precio_lb) > 0) {
+        const monto = Math.round(pesoTotal * parseFloat(cliente.precio_lb) * 100) / 100;
+        await pool.query(
+          `INSERT INTO cuenta_movimientos (cliente_id, tipo, monto, descripcion, pedido_id, creado_por)
+           VALUES ($1, 'cargo', $2, $3, $4, $5)`,
+          [
+            clienteId,
+            monto,
+            `Pedido #${pedidoId}: ${cantidad} canales, ${pesoTotal.toFixed(2)} lbs x $${parseFloat(cliente.precio_lb).toFixed(2)}/lb`,
+            pedidoId,
+            usuario,
+          ]
+        );
+        cargo = { monto, precio_lb: parseFloat(cliente.precio_lb) };
+      }
+
+      return { pedidoId, pesoTotal, cargo };
     } catch (error) {
       throw new Error(`Error al confirmar picking: ${error.message}`);
     }

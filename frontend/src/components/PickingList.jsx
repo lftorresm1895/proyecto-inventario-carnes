@@ -50,12 +50,18 @@ export function PickingList() {
     }
 
     try {
-      await api.confirmarPicking(cliente.cliente_id, canalIds, fecha);
+      const res = await api.confirmarPicking(cliente.cliente_id, canalIds, fecha);
       setCompletedClientes((prev) => ({
         ...prev,
         [cliente.cliente_id]: true,
       }));
-      alert(`✅ Pedido de ${cliente.cliente_nombre} confirmado`);
+      const cargo = res?.pedido?.cargo;
+      alert(
+        `✅ Pedido de ${cliente.cliente_nombre} confirmado` +
+          (cargo
+            ? `\n💵 Cargado a su cuenta: $${cargo.monto.toFixed(2)} (${res.pedido.pesoTotal.toFixed(2)} lbs x $${cargo.precio_lb.toFixed(2)}/lb)`
+            : '')
+      );
     } catch (err) {
       alert('Error: ' + err.message);
     }

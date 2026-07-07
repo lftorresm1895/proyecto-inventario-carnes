@@ -1,6 +1,7 @@
 const pool = require('./db');
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcryptjs');
 
 async function initDb() {
   try {
@@ -24,6 +25,29 @@ async function initDb() {
     await pool.query(
       "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS preferencia VARCHAR(50) DEFAULT 'cualquiera'"
     );
+    await pool.query(
+      "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS precio_lb DECIMAL(10, 2) DEFAULT 0"
+    );
+    await pool.query(
+      "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS cuenta_activa BOOLEAN DEFAULT FALSE"
+    );
+    await pool.query(
+      "ALTER TABLE canales ADD COLUMN IF NOT EXISTS creado_por VARCHAR(100)"
+    );
+    await pool.query(
+      "ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS creado_por VARCHAR(100)"
+    );
+
+    // Usuario admin inicial si no existe ninguno
+    const usuarios = await pool.query('SELECT COUNT(*) as total FROM usuarios');
+    if (parseInt(usuarios.rows[0].total) === 0) {
+      const hash = await bcrypt.hash('carnes2026', 10);
+      await pool.query(
+        `INSERT INTO usuarios (nombre, username, password_hash, rol) VALUES ($1, $2, $3, 'admin')`,
+        ['Administrador', 'admin', hash]
+      );
+      console.log('👤 Usuario inicial creado: admin / carnes2026');
+    }
 
     console.log('✅ Database initialized');
   } catch (error) {

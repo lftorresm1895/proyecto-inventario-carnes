@@ -18,7 +18,7 @@ router.post('/confirmar', async (req, res) => {
     if (!cliente_id || !canales_ids || !Array.isArray(canales_ids)) {
       return res.status(400).json({ error: 'Faltan cliente_id o canales_ids' });
     }
-    const result = await pickingService.confirmarPicking(cliente_id, canales_ids, fecha_pedido);
+    const result = await pickingService.confirmarPicking(cliente_id, canales_ids, fecha_pedido, req.usuario?.username);
     res.json({ success: true, pedido: result });
   } catch (error) {
     res.status(500).json({ error: error.message });

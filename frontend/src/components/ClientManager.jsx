@@ -8,10 +8,18 @@ export function ClientManager() {
   const [telefono, setTelefono] = useState('');
   const [email, setEmail] = useState('');
   const [preferencia, setPreferencia] = useState('cualquiera');
-  const [selectedCliente, setSelectedCliente] = useState(null);
+  const [precioLb, setPrecioLb] = useState('');
+  const [cuentaActiva, setCuentaActiva] = useState(false);
+  const [selectedCliente, setSelectedCliente] = useState('');
   const [dia, setDia] = useState('lunes');
   const [cantidad, setCantidad] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // Cuenta expandida
+  const [cuentaAbierta, setCuentaAbierta] = useState(null); // cliente id
+  const [cuentaData, setCuentaData] = useState(null);
+  const [montoAbono, setMontoAbono] = useState('');
+  const [descAbono, setDescAbono] = useState('');
 
   useEffect(() => {
     cargarClientes();
@@ -20,7 +28,7 @@ export function ClientManager() {
   const cargarClientes = async () => {
     try {
       const res = await api.obtenerClientes();
-      setClientes(res);
+      if (Array.isArray(res)) setClientes(res);
     } catch (err) {
       alert('Error: ' + err.message);
     } finally {
@@ -36,11 +44,13 @@ export function ClientManager() {
     }
 
     try {
-      await api.crearCliente(nombre, telefono, email, preferencia);
+      await api.crearCliente(nombre, telefono, email, preferencia, precioLb, cuentaActiva);
       setNombre('');
       setTelefono('');
       setEmail('');
       setPreferencia('cualquiera');
+      setPrecioLb('');
+      setCuentaActiva(false);
       await cargarClientes();
       alert('✅ Cliente creado');
     } catch (err) {
@@ -64,7 +74,43 @@ export function ClientManager() {
     }
   };
 
-  if (loading) return <div>Cargando...</div>;
+  const verCuenta = async (clienteId) => {
+    if (cuentaAbierta === clienteId) {
+      setCuentaAbierta(null);
+      setCuentaData(null);
+      return;
+    }
+    setCuentaAbierta(clienteId);
+    setCuentaData(null);
+    try {
+      const res = await api.obtenerCuenta(clienteId);
+      setCuentaData(res);
+    } catch (err) {
+      alert('Error cargando cuenta: ' + err.message);
+    }
+  };
+
+  const abonar = async (clienteId) => {
+    if (!montoAbono || parseFloat(montoAbono) <= 0) {
+      alert('Ingresa un monto válido');
+      return;
+    }
+    try {
+      await api.registrarAbono(clienteId, parseFloat(montoAbono), descAbono);
+      setMontoAbono('');
+      setDescAbono('');
+      const res = await api.obtenerCuenta(clienteId);
+      setCuentaData(res);
+      await cargarClientes();
+      alert('✅ Abono registrado');
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
+
+  const fmtMonto = (m) => `$${parseFloat(m).toFixed(2)}`;
+
+  if (loading) return <div className="loading">Cargando...</div>;
 
   return (
     <div className="client-manager">
@@ -85,7 +131,7 @@ export function ClientManager() {
           />
           <input
             type="email"
-            placeholder="Email"
+            placeholder="Email (opcional)"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
@@ -94,6 +140,22 @@ export function ClientManager() {
             <option value="light">Preferencia: Solo Light (sin papada)</option>
             <option value="normal">Preferencia: Solo Normal</option>
           </select>
+          <input
+            type="number"
+            placeholder="Precio por libra (ej: 1.35)"
+            value={precioLb}
+            onChange={(e) => setPrecioLb(e.target.value)}
+            step="0.01"
+            min="0"
+          />
+          <label className="check-line">
+            <input
+              type="checkbox"
+              checked={cuentaActiva}
+              onChange={(e) => setCuentaActiva(e.target.checked)}
+            />
+            Llevar cuenta corriente (cargos automáticos al confirmar pedidos)
+          </label>
           <button type="submit">Crear Cliente</button>
         </form>
       </div>
@@ -111,9 +173,12 @@ export function ClientManager() {
           </select>
 
           <select value={dia} onChange={(e) => setDia(e.target.value)}>
-            <option>lunes</option>
-            <option>miercoles</option>
-            <option>viernes</option>
+            <option value="lunes">Lunes</option>
+            <option value="martes">Martes</option>
+            <option value="miercoles">Miércoles</option>
+            <option value="jueves">Jueves</option>
+            <option value="viernes">Viernes</option>
+            <option value="sabado">Sábado</option>
           </select>
 
           <input
@@ -138,18 +203,83 @@ export function ClientManager() {
               <div key={cliente.id} className="cliente-item">
                 <h3>{cliente.nombre}</h3>
                 <p>{cliente.telefono}</p>
+
                 {cliente.preferencia && cliente.preferencia !== 'cualquiera' && (
                   <span className={`pref-tag ${cliente.preferencia}`}>
                     {cliente.preferencia === 'light' ? '🥓 Solo Light' : 'Solo Normal'}
                   </span>
                 )}
+
+                {parseFloat(cliente.precio_lb) > 0 && (
+                  <p className="precio-linea">💵 {fmtMonto(cliente.precio_lb)}/lb</p>
+                )}
+
                 {cliente.pedidos_agendados && cliente.pedidos_agendados.length > 0 && (
                   <div className="pedidos">
-                    {cliente.pedidos_agendados.map((p) => (
-                      <span key={p.id} className="pedido-tag">
-                        {p.dia.charAt(0).toUpperCase() + p.dia.slice(1)}: {p.cantidad_canales}
-                      </span>
-                    ))}
+                    {cliente.pedidos_agendados
+                      .filter((p) => p)
+                      .map((p, i) => (
+                        <span key={i} className="pedido-tag">
+                          {p.dia?.charAt(0).toUpperCase() + p.dia?.slice(1)}: {p.cantidad_canales}
+                        </span>
+                      ))}
+                  </div>
+                )}
+
+                {cliente.cuenta_activa && (
+                  <div className="cuenta-resumen">
+                    <span className={parseFloat(cliente.saldo) > 0 ? 'saldo debe' : 'saldo'}>
+                      Saldo: {fmtMonto(cliente.saldo)}
+                    </span>
+                    <button className="btn-cuenta" onClick={() => verCuenta(cliente.id)}>
+                      {cuentaAbierta === cliente.id ? 'Cerrar' : 'Ver cuenta'}
+                    </button>
+                  </div>
+                )}
+
+                {cuentaAbierta === cliente.id && (
+                  <div className="cuenta-detalle">
+                    {!cuentaData ? (
+                      <p>Cargando...</p>
+                    ) : (
+                      <>
+                        <div className="abono-form">
+                          <input
+                            type="number"
+                            placeholder="Monto abono"
+                            value={montoAbono}
+                            onChange={(e) => setMontoAbono(e.target.value)}
+                            step="0.01"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Nota (opcional)"
+                            value={descAbono}
+                            onChange={(e) => setDescAbono(e.target.value)}
+                          />
+                          <button onClick={() => abonar(cliente.id)}>💰 Abonar</button>
+                        </div>
+
+                        <div className="movimientos">
+                          {cuentaData.movimientos.length === 0 && <p>Sin movimientos aún</p>}
+                          {cuentaData.movimientos.map((m) => (
+                            <div key={m.id} className={`mov ${m.tipo}`}>
+                              <div className="mov-desc">
+                                {m.descripcion}
+                                <small>
+                                  {new Date(m.fecha).toLocaleDateString()} ·{' '}
+                                  {m.creado_por || 'sistema'}
+                                </small>
+                              </div>
+                              <div className="mov-monto">
+                                {m.tipo === 'cargo' ? '+' : '−'}
+                                {fmtMonto(m.monto)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

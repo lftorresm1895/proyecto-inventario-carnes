@@ -1,13 +1,45 @@
 const pool = require('../db/db');
 
 class ClientesService {
-  async crearCliente(nombre, telefono, email, preferencia = 'cualquiera') {
+  async crearCliente(nombre, telefono, email, preferencia = 'cualquiera', precio_lb = 0, cuenta_activa = false) {
     const query = `
-      INSERT INTO clientes (nombre, telefono, email, preferencia)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO clientes (nombre, telefono, email, preferencia, precio_lb, cuenta_activa)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
-    const result = await pool.query(query, [nombre, telefono, email, preferencia]);
+    const result = await pool.query(query, [nombre, telefono, email, preferencia, precio_lb, cuenta_activa]);
+    return result.rows[0];
+  }
+
+  async obtenerCuenta(clienteId) {
+    const movimientos = await pool.query(
+      `SELECT id, tipo, monto, descripcion, pedido_id, creado_por, fecha
+       FROM cuenta_movimientos
+       WHERE cliente_id = $1
+       ORDER BY fecha DESC`,
+      [clienteId]
+    );
+
+    const saldoResult = await pool.query(
+      `SELECT COALESCE(SUM(CASE WHEN tipo = 'cargo' THEN monto ELSE -monto END), 0) as saldo
+       FROM cuenta_movimientos
+       WHERE cliente_id = $1`,
+      [clienteId]
+    );
+
+    return {
+      saldo: parseFloat(saldoResult.rows[0].saldo),
+      movimientos: movimientos.rows,
+    };
+  }
+
+  async registrarAbono(clienteId, monto, descripcion, usuario = null) {
+    const result = await pool.query(
+      `INSERT INTO cuenta_movimientos (cliente_id, tipo, monto, descripcion, creado_por)
+       VALUES ($1, 'abono', $2, $3, $4)
+       RETURNING *`,
+      [clienteId, monto, descripcion || 'Abono', usuario]
+    );
     return result.rows[0];
   }
 
@@ -19,6 +51,13 @@ class ClientesService {
         c.telefono,
         c.email,
         c.preferencia,
+        c.precio_lb,
+        c.cuenta_activa,
+        COALESCE((
+          SELECT SUM(CASE WHEN m.tipo = 'cargo' THEN m.monto ELSE -m.monto END)
+          FROM cuenta_movimientos m
+          WHERE m.cliente_id = c.id
+        ), 0) as saldo,
         json_agg(
           json_build_object(
             'id', pa.id,
@@ -29,7 +68,7 @@ class ClientesService {
         ) FILTER (WHERE pa.id IS NOT NULL) as pedidos_agendados
       FROM clientes c
       LEFT JOIN pedidos_agendados pa ON c.id = pa.cliente_id
-      GROUP BY c.id, c.nombre, c.telefono, c.email, c.preferencia
+      GROUP BY c.id, c.nombre, c.telefono, c.email, c.preferencia, c.precio_lb, c.cuenta_activa
       ORDER BY c.nombre
     `;
     const result = await pool.query(query);
