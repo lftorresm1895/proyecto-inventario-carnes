@@ -10,6 +10,45 @@
   margin-bottom: 1.5rem;
 }
 
+.rieles-status {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.riel-card {
+  background: #ecf0f1;
+  border: 2px solid #bdc3c7;
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+}
+
+.riel-card.sugerido {
+  background: #e8f8f5;
+  border-color: #27ae60;
+  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.2);
+}
+
+.riel-nombre {
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.riel-peso {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #34495e;
+}
+
+.riel-tag {
+  color: #27ae60;
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-top: 0.3rem;
+}
+
 .entrada-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));

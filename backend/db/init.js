@@ -20,6 +20,11 @@ async function initDb() {
       }
     }
 
+    // Migraciones sobre tablas existentes
+    await pool.query(
+      "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS preferencia VARCHAR(50) DEFAULT 'cualquiera'"
+    );
+
     console.log('✅ Database initialized');
   } catch (error) {
     console.error('❌ Database init error:', error.message);

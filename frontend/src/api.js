@@ -21,6 +21,11 @@ export const api = {
     return res.json();
   },
 
+  sugerirRiel: async () => {
+    const res = await fetch(`${API_URL}/inventario/sugerir-riel`);
+    return res.json();
+  },
+
   // Picking
   obtenerPickingList: async (fecha) => {
     const res = await fetch(`${API_URL}/picking/lista?fecha=${fecha}`);
@@ -46,11 +51,11 @@ export const api = {
     return res.json();
   },
 
-  crearCliente: async (nombre, telefono, email) => {
+  crearCliente: async (nombre, telefono, email, preferencia) => {
     const res = await fetch(`${API_URL}/clientes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre, telefono, email }),
+      body: JSON.stringify({ nombre, telefono, email, preferencia }),
     });
     return res.json();
   },

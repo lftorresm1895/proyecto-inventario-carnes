@@ -93,6 +93,32 @@ class InventarioService {
     return result.rows[0];
   }
 
+  // Sugerir riel: devuelve la carga de cada riel para colgar donde haya menos peso
+  async sugerirRiel() {
+    const query = `
+      SELECT
+        r.riel,
+        COUNT(c.id)::INTEGER as total_canales,
+        COALESCE(ROUND(SUM(c.peso_lbs)::numeric, 2), 0) as peso_total
+      FROM (SELECT 1 as riel UNION SELECT 2 UNION SELECT 3 UNION SELECT 4) r
+      LEFT JOIN canales c ON c.ubicacion_riel = r.riel AND c.estado = 'en_reefer'
+      GROUP BY r.riel
+      ORDER BY r.riel
+    `;
+    const result = await pool.query(query);
+    const rieles = result.rows.map((r) => ({
+      riel: r.riel,
+      total_canales: r.total_canales,
+      peso_total: parseFloat(r.peso_total),
+    }));
+
+    const sugerido = rieles.reduce((min, r) =>
+      r.peso_total < min.peso_total ? r : min
+    );
+
+    return { rieles, riel_sugerido: sugerido.riel };
+  }
+
   async obtenerSubproductosDisponibles() {
     const query = `
       SELECT *

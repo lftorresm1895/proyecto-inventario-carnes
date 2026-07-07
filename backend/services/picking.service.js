@@ -11,6 +11,7 @@ class PickingService {
         c.id as cliente_id,
         c.nombre,
         c.telefono,
+        c.preferencia,
         pa.cantidad_canales
       FROM pedidos_agendados pa
       JOIN clientes c ON pa.cliente_id = c.id
@@ -19,6 +20,13 @@ class PickingService {
 
     const pedidosResult = await pool.query(queryPedidosAgendados, [dia_nombre]);
     const pedidosAgendados = pedidosResult.rows;
+
+    // Los clientes con preferencia estricta (light/normal) escogen primero,
+    // para que los de "cualquiera" no les quiten los canales que necesitan
+    pedidosAgendados.sort((a, b) => {
+      const rank = (p) => (p === 'cualquiera' || !p ? 1 : 0);
+      return rank(a.preferencia) - rank(b.preferencia);
+    });
 
     const queryCanalesDisponibles = `
       SELECT
@@ -31,30 +39,40 @@ class PickingService {
         EXTRACT(DAY FROM (NOW() - fecha_entrada))::INTEGER as dias_en_frio
       FROM canales
       WHERE estado = 'en_reefer'
-      ORDER BY ubicacion_riel, fecha_entrada DESC
+      ORDER BY fecha_entrada DESC, ubicacion_riel
     `;
 
     const canalesResult = await pool.query(queryCanalesDisponibles);
-    const canalesDisponibles = canalesResult.rows;
+    let disponibles = canalesResult.rows;
 
     const pickingList = [];
-    let canalIndex = 0;
 
     for (const pedido of pedidosAgendados) {
-      const canalesAsignados = [];
-      let cantidad = pedido.cantidad_canales;
+      const pref = pedido.preferencia || 'cualquiera';
+      const cumplePreferencia = (canal) =>
+        pref === 'cualquiera' || canal.clasificacion === pref;
 
-      while (cantidad > 0 && canalIndex < canalesDisponibles.length) {
-        canalesAsignados.push(canalesDisponibles[canalIndex]);
-        canalIndex++;
-        cantidad--;
+      const canalesAsignados = [];
+      const restantes = [];
+
+      for (const canal of disponibles) {
+        if (canalesAsignados.length < pedido.cantidad_canales && cumplePreferencia(canal)) {
+          canalesAsignados.push(canal);
+        } else {
+          restantes.push(canal);
+        }
       }
+      disponibles = restantes;
+
+      const faltantes = pedido.cantidad_canales - canalesAsignados.length;
 
       pickingList.push({
         cliente_id: pedido.cliente_id,
         cliente_nombre: pedido.nombre,
         telefono: pedido.telefono,
+        preferencia: pref,
         cantidad_pedida: pedido.cantidad_canales,
+        faltantes: faltantes > 0 ? faltantes : 0,
         canales: canalesAsignados,
         peso_total: canalesAsignados.reduce((sum, c) => sum + parseFloat(c.peso_lbs), 0),
       });

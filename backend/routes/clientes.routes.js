@@ -4,11 +4,11 @@ const clientesService = require('../services/clientes.service');
 
 router.post('/', async (req, res) => {
   try {
-    const { nombre, telefono, email } = req.body;
+    const { nombre, telefono, email, preferencia } = req.body;
     if (!nombre) {
       return res.status(400).json({ error: 'El nombre es requerido' });
     }
-    const result = await clientesService.crearCliente(nombre, telefono, email);
+    const result = await clientesService.crearCliente(nombre, telefono, email, preferencia);
     res.json({ success: true, cliente: result });
   } catch (error) {
     res.status(500).json({ error: error.message });

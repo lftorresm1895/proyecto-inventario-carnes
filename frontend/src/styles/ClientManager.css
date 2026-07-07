@@ -124,3 +124,22 @@
   font-size: 0.85rem;
   white-space: nowrap;
 }
+
+.pref-tag {
+  display: inline-block;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.8rem;
+}
+
+.pref-tag.light {
+  background: #d4edda;
+  color: #155724;
+}
+
+.pref-tag.normal {
+  background: #cfe2ff;
+  color: #084298;
+}

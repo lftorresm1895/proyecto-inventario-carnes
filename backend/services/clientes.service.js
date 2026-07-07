@@ -1,13 +1,13 @@
 const pool = require('../db/db');
 
 class ClientesService {
-  async crearCliente(nombre, telefono, email) {
+  async crearCliente(nombre, telefono, email, preferencia = 'cualquiera') {
     const query = `
-      INSERT INTO clientes (nombre, telefono, email)
-      VALUES ($1, $2, $3)
+      INSERT INTO clientes (nombre, telefono, email, preferencia)
+      VALUES ($1, $2, $3, $4)
       RETURNING *
     `;
-    const result = await pool.query(query, [nombre, telefono, email]);
+    const result = await pool.query(query, [nombre, telefono, email, preferencia]);
     return result.rows[0];
   }
 
@@ -18,6 +18,7 @@ class ClientesService {
         c.nombre,
         c.telefono,
         c.email,
+        c.preferencia,
         json_agg(
           json_build_object(
             'id', pa.id,
@@ -28,7 +29,7 @@ class ClientesService {
         ) FILTER (WHERE pa.id IS NOT NULL) as pedidos_agendados
       FROM clientes c
       LEFT JOIN pedidos_agendados pa ON c.id = pa.cliente_id
-      GROUP BY c.id, c.nombre, c.telefono, c.email
+      GROUP BY c.id, c.nombre, c.telefono, c.email, c.preferencia
       ORDER BY c.nombre
     `;
     const result = await pool.query(query);

@@ -7,6 +7,7 @@ export function ClientManager() {
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
   const [email, setEmail] = useState('');
+  const [preferencia, setPreferencia] = useState('cualquiera');
   const [selectedCliente, setSelectedCliente] = useState(null);
   const [dia, setDia] = useState('lunes');
   const [cantidad, setCantidad] = useState('');
@@ -35,10 +36,11 @@ export function ClientManager() {
     }
 
     try {
-      await api.crearCliente(nombre, telefono, email);
+      await api.crearCliente(nombre, telefono, email, preferencia);
       setNombre('');
       setTelefono('');
       setEmail('');
+      setPreferencia('cualquiera');
       await cargarClientes();
       alert('✅ Cliente creado');
     } catch (err) {
@@ -87,6 +89,11 @@ export function ClientManager() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
+          <select value={preferencia} onChange={(e) => setPreferencia(e.target.value)}>
+            <option value="cualquiera">Preferencia: Cualquiera</option>
+            <option value="light">Preferencia: Solo Light (sin papada)</option>
+            <option value="normal">Preferencia: Solo Normal</option>
+          </select>
           <button type="submit">Crear Cliente</button>
         </form>
       </div>
@@ -131,6 +138,11 @@ export function ClientManager() {
               <div key={cliente.id} className="cliente-item">
                 <h3>{cliente.nombre}</h3>
                 <p>{cliente.telefono}</p>
+                {cliente.preferencia && cliente.preferencia !== 'cualquiera' && (
+                  <span className={`pref-tag ${cliente.preferencia}`}>
+                    {cliente.preferencia === 'light' ? '🥓 Solo Light' : 'Solo Normal'}
+                  </span>
+                )}
                 {cliente.pedidos_agendados && cliente.pedidos_agendados.length > 0 && (
                   <div className="pedidos">
                     {cliente.pedidos_agendados.map((p) => (

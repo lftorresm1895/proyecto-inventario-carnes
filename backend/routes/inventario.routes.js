@@ -42,6 +42,15 @@ router.get('/riel/:riel', async (req, res) => {
   }
 });
 
+router.get('/sugerir-riel', async (req, res) => {
+  try {
+    const result = await inventarioService.sugerirRiel();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post('/subproductos', async (req, res) => {
   try {
     const { tipo, cantidad, peso_lbs, ubicacion } = req.body;

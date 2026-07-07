@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../api';
 import '../styles/EntradaCanales.css';
 
@@ -8,6 +8,37 @@ export function EntradaCanales() {
   const [clasificacion, setClasificacion] = useState('normal');
   const [riel, setRiel] = useState('1');
   const [guardando, setGuardando] = useState(false);
+  const [cargaRieles, setCargaRieles] = useState([]);
+  const [rielSugerido, setRielSugerido] = useState(null);
+
+  useEffect(() => {
+    cargarSugerencia();
+  }, []);
+
+  // Recalcula la sugerencia sumando lo que ya está en el reefer + lo pendiente por guardar
+  useEffect(() => {
+    if (cargaRieles.length === 0) return;
+
+    const cargas = cargaRieles.map((r) => {
+      const pendiente = canales
+        .filter((c) => c.ubicacion_riel === r.riel)
+        .reduce((sum, c) => sum + c.peso_lbs, 0);
+      return { riel: r.riel, peso_total: r.peso_total + pendiente };
+    });
+
+    const sugerido = cargas.reduce((min, r) => (r.peso_total < min.peso_total ? r : min));
+    setRielSugerido(sugerido.riel);
+    setRiel(String(sugerido.riel));
+  }, [cargaRieles, canales]);
+
+  const cargarSugerencia = async () => {
+    try {
+      const res = await api.sugerirRiel();
+      setCargaRieles(res.rieles || []);
+    } catch (err) {
+      console.error('Error cargando sugerencia de riel:', err);
+    }
+  };
 
   const agregarCanal = () => {
     if (!peso || peso <= 0) {
@@ -38,6 +69,7 @@ export function EntradaCanales() {
       await api.registrarEntrada(canales);
       alert(`✅ ${canales.length} canales registrados`);
       setCanales([]);
+      await cargarSugerencia();
     } catch (err) {
       alert('Error: ' + err.message);
     } finally {
@@ -51,9 +83,32 @@ export function EntradaCanales() {
 
   const pesoTotal = canales.reduce((sum, c) => sum + c.peso_lbs, 0);
 
+  const pesoPendientePorRiel = (numRiel) =>
+    canales
+      .filter((c) => c.ubicacion_riel === numRiel)
+      .reduce((sum, c) => sum + c.peso_lbs, 0);
+
   return (
     <div className="entrada-container">
       <h2>🚚 Entrada de Canales</h2>
+
+      {cargaRieles.length > 0 && (
+        <div className="rieles-status">
+          {cargaRieles.map((r) => {
+            const total = r.peso_total + pesoPendientePorRiel(r.riel);
+            return (
+              <div
+                key={r.riel}
+                className={`riel-card ${rielSugerido === r.riel ? 'sugerido' : ''}`}
+              >
+                <div className="riel-nombre">Riel {r.riel}</div>
+                <div className="riel-peso">{total.toFixed(0)} lbs</div>
+                {rielSugerido === r.riel && <div className="riel-tag">⬅ Cuelga aquí</div>}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="entrada-form">
         <div className="form-group">
@@ -64,19 +119,21 @@ export function EntradaCanales() {
             onChange={(e) => setPeso(e.target.value)}
             placeholder="ej: 105"
             step="0.5"
+            autoFocus
+            onKeyDown={(e) => e.key === 'Enter' && agregarCanal()}
           />
         </div>
 
         <div className="form-group">
           <label>Clasificación</label>
           <select value={clasificacion} onChange={(e) => setClasificacion(e.target.value)}>
-            <option value="light">Light</option>
+            <option value="light">Light (sin papada)</option>
             <option value="normal">Normal</option>
           </select>
         </div>
 
         <div className="form-group">
-          <label>Riel</label>
+          <label>Riel {rielSugerido && `(sugerido: ${rielSugerido})`}</label>
           <select value={riel} onChange={(e) => setRiel(e.target.value)}>
             <option value="1">Riel 1</option>
             <option value="2">Riel 2</option>

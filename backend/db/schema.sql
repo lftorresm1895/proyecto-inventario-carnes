@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS clientes (
   nombre VARCHAR(255) NOT NULL UNIQUE,
   telefono VARCHAR(20),
   email VARCHAR(255),
+  preferencia VARCHAR(50) DEFAULT 'cualquiera',
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

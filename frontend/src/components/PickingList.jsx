@@ -90,13 +90,23 @@ export function PickingList() {
               }`}
             >
               <div className="cliente-header">
-                <h2>{cliente.cliente_nombre}</h2>
+                <h2>
+                  {cliente.cliente_nombre}
+                  {cliente.preferencia && cliente.preferencia !== 'cualquiera' && (
+                    <span className="pref-badge"> · Solo {cliente.preferencia}</span>
+                  )}
+                </h2>
                 <span className="telefono">{cliente.telefono}</span>
               </div>
 
               <div className="pedido-info">
                 <span>Pedidos: {cliente.cantidad_pedida} canales</span>
                 <span>Peso total: {cliente.peso_total.toFixed(2)} lbs</span>
+                {cliente.faltantes > 0 && (
+                  <span className="faltantes">
+                    ⚠️ Faltan {cliente.faltantes} canales {cliente.preferencia !== 'cualquiera' ? cliente.preferencia : ''} en inventario
+                  </span>
+                )}
               </div>
 
               <div className="canales-selection">
