@@ -34,6 +34,9 @@ class PickingService {
         numero_canal,
         peso_lbs,
         clasificacion,
+        graso,
+        papada,
+        golpeado,
         ubicacion_riel,
         fecha_entrada,
         EXTRACT(DAY FROM (NOW() - fecha_entrada))::INTEGER as dias_en_frio

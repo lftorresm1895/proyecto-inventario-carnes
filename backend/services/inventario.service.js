@@ -3,19 +3,28 @@ const pool = require('../db/db');
 class InventarioService {
   async registrarEntrada(canales, usuario = null) {
     const query = `
-      INSERT INTO canales (numero_canal, peso_lbs, clasificacion, ubicacion_riel, estado, creado_por)
-      VALUES ($1, $2, $3, $4, 'en_reefer', $5)
+      INSERT INTO canales (numero_canal, peso_lbs, clasificacion, ubicacion_riel, estado, creado_por, graso, papada, golpeado)
+      VALUES ($1, $2, $3, $4, 'en_reefer', $5, $6, $7, $8)
       RETURNING *
     `;
 
     const results = [];
     for (const canal of canales) {
+      const graso = !!canal.graso;
+      const papada = !!canal.papada;
+      const golpeado = !!canal.golpeado;
+      // Sin grasa extra y sin papada = light (lo que piden los clientes exigentes)
+      const clasificacion = !graso && !papada ? 'light' : 'normal';
+
       const result = await pool.query(query, [
         canal.numero_canal,
         canal.peso_lbs,
-        canal.clasificacion || 'normal',
+        clasificacion,
         canal.ubicacion_riel,
         usuario,
+        graso,
+        papada,
+        golpeado,
       ]);
       results.push(result.rows[0]);
     }
@@ -29,6 +38,9 @@ class InventarioService {
         numero_canal,
         peso_lbs,
         clasificacion,
+        graso,
+        papada,
+        golpeado,
         ubicacion_riel,
         fecha_entrada,
         EXTRACT(DAY FROM (NOW() - fecha_entrada))::INTEGER as dias_en_frio,
@@ -65,7 +77,10 @@ class InventarioService {
         COUNT(*) as total_canales,
         ROUND(SUM(peso_lbs)::numeric, 2) as peso_total_lbs,
         COUNT(CASE WHEN clasificacion = 'light' THEN 1 END) as canales_light,
-        COUNT(CASE WHEN clasificacion = 'normal' THEN 1 END) as canales_normal
+        COUNT(CASE WHEN clasificacion = 'normal' THEN 1 END) as canales_normal,
+        COUNT(CASE WHEN graso THEN 1 END) as canales_grasos,
+        COUNT(CASE WHEN papada THEN 1 END) as canales_papada,
+        COUNT(CASE WHEN golpeado THEN 1 END) as canales_golpeados
       FROM canales
       WHERE estado = 'en_reefer'
     `;

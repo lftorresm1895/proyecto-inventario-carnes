@@ -63,6 +63,27 @@ export function InventoryDashboard() {
             {resumen?.canales_normal || 0}
           </p>
         </div>
+
+        <div className="metric-card">
+          <h3>🥓 Con Grasa</h3>
+          <p className="metric-value" style={{ color: '#FFC107' }}>
+            {resumen?.canales_grasos || 0}
+          </p>
+        </div>
+
+        <div className="metric-card">
+          <h3>Con Papada</h3>
+          <p className="metric-value" style={{ color: '#FF7043' }}>
+            {resumen?.canales_papada || 0}
+          </p>
+        </div>
+
+        <div className="metric-card">
+          <h3>⚠️ Golpeados</h3>
+          <p className="metric-value" style={{ color: '#EF5350' }}>
+            {resumen?.canales_golpeados || 0}
+          </p>
+        </div>
       </div>
 
       {alerta?.alerta && (

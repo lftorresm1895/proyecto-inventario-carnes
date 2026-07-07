@@ -132,7 +132,10 @@ export function PickingList() {
                     />
                     <span className="canal-info">
                       Riel {canal.ubicacion_riel} | {canal.peso_lbs} lbs | {canal.dias_en_frio}d
-                      {canal.clasificacion === 'light' && ' (Light)'}
+                      {!canal.graso && !canal.papada && ' · Light'}
+                      {canal.graso && ' · 🥓 Grasa'}
+                      {canal.papada && ' · Papada'}
+                      {canal.golpeado && ' · ⚠️ Golpe'}
                     </span>
                   </label>
                 ))}

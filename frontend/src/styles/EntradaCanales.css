@@ -171,6 +171,52 @@
   color: #084298;
 }
 
+.badge.graso {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.badge.papada {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.badge.golpeado {
+  background: #e2d9f3;
+  color: #4a2d7a;
+}
+
+.flags-cell {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.flags-group {
+  gap: 0.4rem;
+}
+
+.flag-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500 !important;
+  color: #2c3e50;
+  cursor: pointer;
+  font-size: 1rem !important;
+}
+
+.flag-check input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.flag-hint {
+  color: #7f8c8d;
+  font-size: 0.8rem;
+}
+
 .btn-delete {
   padding: 0.3rem 0.6rem;
   background: #e74c3c;

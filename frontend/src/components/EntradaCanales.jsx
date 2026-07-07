@@ -5,7 +5,9 @@ import '../styles/EntradaCanales.css';
 export function EntradaCanales() {
   const [canales, setCanales] = useState([]);
   const [peso, setPeso] = useState('');
-  const [clasificacion, setClasificacion] = useState('normal');
+  const [graso, setGraso] = useState(false);
+  const [papada, setPapada] = useState(false);
+  const [golpeado, setGolpeado] = useState(false);
   const [riel, setRiel] = useState('1');
   const [guardando, setGuardando] = useState(false);
   const [cargaRieles, setCargaRieles] = useState([]);
@@ -49,13 +51,17 @@ export function EntradaCanales() {
     const nuevoCanal = {
       numero_canal: canales.length + 1,
       peso_lbs: parseFloat(peso),
-      clasificacion,
+      graso,
+      papada,
+      golpeado,
       ubicacion_riel: parseInt(riel),
     };
 
     setCanales([...canales, nuevoCanal]);
     setPeso('');
-    setClasificacion('normal');
+    setGraso(false);
+    setPapada(false);
+    setGolpeado(false);
   };
 
   const guardarCanales = async () => {
@@ -124,12 +130,23 @@ export function EntradaCanales() {
           />
         </div>
 
-        <div className="form-group">
-          <label>Clasificación</label>
-          <select value={clasificacion} onChange={(e) => setClasificacion(e.target.value)}>
-            <option value="light">Light (sin papada)</option>
-            <option value="normal">Normal</option>
-          </select>
+        <div className="form-group flags-group">
+          <label>Características (marca lo que veas)</label>
+          <label className="flag-check">
+            <input type="checkbox" checked={graso} onChange={(e) => setGraso(e.target.checked)} />
+            🥓 Mucha grasa
+          </label>
+          <label className="flag-check">
+            <input type="checkbox" checked={papada} onChange={(e) => setPapada(e.target.checked)} />
+            Papada
+          </label>
+          <label className="flag-check">
+            <input type="checkbox" checked={golpeado} onChange={(e) => setGolpeado(e.target.checked)} />
+            ⚠️ Golpeado / moretón
+          </label>
+          <small className="flag-hint">
+            Sin grasa y sin papada = cuenta como Light
+          </small>
         </div>
 
         <div className="form-group">
@@ -151,15 +168,17 @@ export function EntradaCanales() {
         <h3>Canales a Ingresar ({canales.length})</h3>
         <div className="resumen">
           <span>Total: {pesoTotal.toFixed(2)} lbs</span>
-          <span>Light: {canales.filter((c) => c.clasificacion === 'light').length}</span>
-          <span>Normal: {canales.filter((c) => c.clasificacion === 'normal').length}</span>
+          <span>Light: {canales.filter((c) => !c.graso && !c.papada).length}</span>
+          <span>🥓 Grasa: {canales.filter((c) => c.graso).length}</span>
+          <span>Papada: {canales.filter((c) => c.papada).length}</span>
+          <span>⚠️ Golpes: {canales.filter((c) => c.golpeado).length}</span>
         </div>
 
         <div className="canales-table">
           <div className="table-header">
             <div>#</div>
             <div>Peso</div>
-            <div>Clasificación</div>
+            <div>Características</div>
             <div>Riel</div>
             <div>Acción</div>
           </div>
@@ -168,7 +187,12 @@ export function EntradaCanales() {
             <div key={idx} className="table-row">
               <div>{idx + 1}</div>
               <div>{canal.peso_lbs} lbs</div>
-              <div className={`badge ${canal.clasificacion}`}>{canal.clasificacion}</div>
+              <div className="flags-cell">
+                {!canal.graso && !canal.papada && <span className="badge light">Light</span>}
+                {canal.graso && <span className="badge graso">🥓 Grasa</span>}
+                {canal.papada && <span className="badge papada">Papada</span>}
+                {canal.golpeado && <span className="badge golpeado">⚠️ Golpe</span>}
+              </div>
               <div>Riel {canal.ubicacion_riel}</div>
               <div>
                 <button onClick={() => eliminarCanal(idx)} className="btn-delete">

@@ -35,6 +35,15 @@ async function initDb() {
       "ALTER TABLE canales ADD COLUMN IF NOT EXISTS creado_por VARCHAR(100)"
     );
     await pool.query(
+      "ALTER TABLE canales ADD COLUMN IF NOT EXISTS graso BOOLEAN DEFAULT FALSE"
+    );
+    await pool.query(
+      "ALTER TABLE canales ADD COLUMN IF NOT EXISTS papada BOOLEAN DEFAULT FALSE"
+    );
+    await pool.query(
+      "ALTER TABLE canales ADD COLUMN IF NOT EXISTS golpeado BOOLEAN DEFAULT FALSE"
+    );
+    await pool.query(
       "ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS creado_por VARCHAR(100)"
     );
 
