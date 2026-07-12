@@ -73,6 +73,8 @@ export const api = {
   obtenerInventario: () => authFetch('/inventario/actual'),
   obtenerResumen: () => authFetch('/inventario/resumen'),
   sugerirRiel: () => authFetch('/inventario/sugerir-riel'),
+  obtenerEntradas: () => authFetch('/inventario/entradas'),
+  obtenerCanalesEntrada: (fecha) => authFetch(`/inventario/entradas/${fecha}`),
 
   // Picking
   obtenerPickingList: (fecha) => authFetch(`/picking/lista?fecha=${fecha}`),

@@ -42,6 +42,24 @@ router.get('/riel/:riel', async (req, res) => {
   }
 });
 
+router.get('/entradas', async (req, res) => {
+  try {
+    const result = await inventarioService.obtenerEntradasPorFecha();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/entradas/:fecha', async (req, res) => {
+  try {
+    const result = await inventarioService.obtenerCanalesPorFecha(req.params.fecha);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get('/sugerir-riel', async (req, res) => {
   try {
     const result = await inventarioService.sugerirRiel();

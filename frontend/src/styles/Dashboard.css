@@ -88,6 +88,75 @@
   font-size: 1.1rem;
 }
 
+.descargas-section {
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  border: 2px solid #e9ecef;
+}
+
+.descargas-section h3 {
+  color: #2c3e50;
+  margin-bottom: 1rem;
+}
+
+.sin-descargas {
+  color: #95a5a6;
+  font-style: italic;
+}
+
+.descargas-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.descarga-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+}
+
+.descarga-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.descarga-info strong {
+  color: #2c3e50;
+}
+
+.descarga-info span {
+  color: #34495e;
+  font-size: 0.95rem;
+}
+
+.descarga-info small {
+  color: #7f8c8d;
+}
+
+.btn-reporte {
+  padding: 0.6rem 1rem;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.btn-reporte:hover {
+  background: #2980b9;
+}
+
 .btn-refresh {
   padding: 0.8rem 1.6rem;
   background: #3498db;

@@ -109,6 +109,46 @@ class InventarioService {
     return result.rows[0];
   }
 
+  // Historial de descargas agrupado por fecha de entrada
+  async obtenerEntradasPorFecha() {
+    const query = `
+      SELECT
+        TO_CHAR(fecha_entrada::date, 'YYYY-MM-DD') as fecha,
+        COUNT(*)::int as total_canales,
+        ROUND(SUM(peso_lbs)::numeric, 2) as peso_total,
+        COUNT(*) FILTER (WHERE NOT graso AND NOT papada)::int as light,
+        COUNT(*) FILTER (WHERE graso)::int as grasos,
+        COUNT(*) FILTER (WHERE papada)::int as con_papada,
+        COUNT(*) FILTER (WHERE golpeado)::int as golpeados
+      FROM canales
+      GROUP BY fecha_entrada::date
+      ORDER BY fecha_entrada::date DESC
+    `;
+    const result = await pool.query(query);
+    return result.rows;
+  }
+
+  // Canales de una descarga específica (para regenerar el reporte)
+  async obtenerCanalesPorFecha(fecha) {
+    const query = `
+      SELECT
+        id,
+        numero_canal,
+        peso_lbs,
+        graso,
+        papada,
+        golpeado,
+        ubicacion_riel,
+        estado,
+        creado_por
+      FROM canales
+      WHERE fecha_entrada::date = $1::date
+      ORDER BY id ASC
+    `;
+    const result = await pool.query(query, [fecha]);
+    return result.rows;
+  }
+
   // Sugerir riel: devuelve la carga de cada riel para colgar donde haya menos peso
   async sugerirRiel() {
     const query = `
