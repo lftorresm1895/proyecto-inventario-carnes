@@ -2,6 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { api } from '../api';
 import '../styles/EntradaCanales.css';
 
+// Acepta "180.5" o "180,5" (coma decimal de teclados en español)
+const parseNum = (v) => {
+  const n = parseFloat(String(v ?? '').replace(',', '.'));
+  return isNaN(n) ? 0 : n;
+};
+
 const cargadoresIniciales = () => {
   try {
     const guardados = JSON.parse(localStorage.getItem('cargadores'));
@@ -92,11 +98,11 @@ export function EntradaCanales() {
 
   // Suma de los cargadores que están sobre la báscula
   const pesoCargadores = cargadores.reduce((sum, c, idx) => {
-    const p = parseFloat(c.peso);
+    const p = parseNum(c.peso);
     return enBascula[idx] && p > 0 ? sum + p : sum;
   }, 0);
 
-  const bruto = parseFloat(pesoBruto) || 0;
+  const bruto = parseNum(pesoBruto);
   const pesoNeto = Math.round((bruto - pesoCargadores) * 100) / 100;
 
   const agregarCanal = () => {
@@ -237,7 +243,7 @@ export function EntradaCanales() {
       .filter((c) => c.ubicacion_riel === numRiel)
       .reduce((sum, c) => sum + c.peso_lbs, 0);
 
-  const hayCargadores = cargadores.some((c) => parseFloat(c.peso) > 0);
+  const hayCargadores = cargadores.some((c) => parseNum(c.peso) > 0);
 
   return (
     <div className="entrada-container">
@@ -273,12 +279,11 @@ export function EntradaCanales() {
                     onChange={(e) => setCargador(idx, 'nombre', e.target.value)}
                   />
                   <input
-                    type="number"
+                    type="text"
                     inputMode="decimal"
-                    placeholder="Peso (lbs)"
+                    placeholder="Peso (lbs) ej: 180.5"
                     value={c.peso}
                     onChange={(e) => setCargador(idx, 'peso', e.target.value)}
-                    step="0.5"
                   />
                 </div>
               ))}
@@ -330,13 +335,12 @@ export function EntradaCanales() {
         <label className="captura-label">Peso en báscula (lbs)</label>
         <input
           ref={pesoInputRef}
-          type="number"
+          type="text"
           inputMode="decimal"
           className="peso-bruto-input"
           value={pesoBruto}
           onChange={(e) => setPesoBruto(e.target.value)}
           placeholder="0.0"
-          step="0.5"
           autoFocus
           onKeyDown={(e) => e.key === 'Enter' && agregarCanal()}
         />
@@ -346,13 +350,13 @@ export function EntradaCanales() {
             <div className="en-bascula">
               <span className="en-bascula-label">¿Quiénes cargaron?</span>
               {cargadores.map((c, idx) =>
-                parseFloat(c.peso) > 0 ? (
+                parseNum(c.peso) > 0 ? (
                   <button
                     key={idx}
                     className={`chip cargador-chip ${enBascula[idx] ? 'activo' : ''}`}
                     onClick={() => toggleEnBascula(idx)}
                   >
-                    {c.nombre || `Cargador ${idx + 1}`} · {parseFloat(c.peso).toFixed(0)} lb
+                    {c.nombre || `Cargador ${idx + 1}`} · {parseNum(c.peso).toFixed(1)} lb
                   </button>
                 ) : null
               )}
