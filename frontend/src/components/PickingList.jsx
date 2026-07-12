@@ -131,7 +131,7 @@ export function PickingList() {
                       disabled={completedClientes[cliente.cliente_id]}
                     />
                     <span className="canal-info">
-                      Riel {canal.ubicacion_riel} | {canal.peso_lbs} lbs | {canal.dias_en_frio}d
+                      {canal.ubicacion_riel > 0 ? `Riel ${canal.ubicacion_riel}` : 'Sin riel'} | {canal.peso_lbs} lbs | {canal.dias_en_frio}d
                       {!canal.graso && !canal.papada && ' · Light'}
                       {canal.graso && ' · 🥓 Grasa'}
                       {canal.papada && ' · Papada'}

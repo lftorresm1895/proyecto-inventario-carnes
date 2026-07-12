@@ -68,6 +68,30 @@
   border-color: #d4a017;
 }
 
+/* ===== Switch rieles ===== */
+.switch-rieles {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.8rem;
+  cursor: pointer;
+  color: #2c3e50;
+  font-weight: 600;
+  user-select: none;
+}
+
+.switch-rieles input[type='checkbox'] {
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+}
+
+.switch-rieles em {
+  color: #c0392b;
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
 /* ===== Rieles ===== */
 .rieles-status {
   display: grid;

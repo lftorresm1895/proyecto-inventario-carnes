@@ -33,7 +33,14 @@ export function EntradaCanales() {
   const [enBascula, setEnBascula] = useState([true, true, true]);
   const [mostrarCargadores, setMostrarCargadores] = useState(true);
 
+  // Cuando no se sabe/no se quiere asignar riel: solo peso + características
+  const [sinRieles, setSinRieles] = useState(() => localStorage.getItem('sinRieles') === '1');
+
   const pesoInputRef = useRef(null);
+
+  useEffect(() => {
+    localStorage.setItem('sinRieles', sinRieles ? '1' : '0');
+  }, [sinRieles]);
 
   useEffect(() => {
     cargarSugerencia();
@@ -110,7 +117,7 @@ export function EntradaCanales() {
       graso,
       papada,
       golpeado,
-      ubicacion_riel: riel,
+      ubicacion_riel: sinRieles ? 0 : riel,
     };
 
     setCanales([...canales, nuevoCanal]);
@@ -121,20 +128,98 @@ export function EntradaCanales() {
     pesoInputRef.current?.focus();
   };
 
+  const generarReporte = (lista, ventana) => {
+    const fecha = new Date();
+    const pesoSum = lista.reduce((s, c) => s + c.peso_lbs, 0);
+    const filas = lista
+      .map((c, i) => {
+        const marcas = [
+          !c.graso && !c.papada ? 'Light' : '',
+          c.graso ? 'Grasa' : '',
+          c.papada ? 'Papada' : '',
+          c.golpeado ? 'Golpeado' : '',
+        ]
+          .filter(Boolean)
+          .join(', ');
+        return `<tr>
+          <td>${i + 1}</td>
+          <td class="num">${c.peso_lbs.toFixed(2)}</td>
+          <td>${marcas}</td>
+          <td>${c.ubicacion_riel > 0 ? 'Riel ' + c.ubicacion_riel : '—'}</td>
+        </tr>`;
+      })
+      .join('');
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Reporte de Entrada ${fecha.toLocaleDateString()}</title>
+<style>
+  body { font-family: Arial, sans-serif; color: #222; margin: 24px; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .sub { color: #666; margin-bottom: 16px; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { border: 1px solid #999; padding: 5px 8px; text-align: left; }
+  th { background: #eee; }
+  td.num { text-align: right; }
+  .totales { margin-top: 16px; font-size: 14px; }
+  .totales div { margin-bottom: 4px; }
+  .peso-total { font-size: 18px; font-weight: bold; }
+  @media print { .no-print { display: none; } }
+</style>
+</head>
+<body>
+  <h1>🥩 Reporte de Entrada de Canales</h1>
+  <div class="sub">${fecha.toLocaleDateString('es-EC', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} · ${fecha.toLocaleTimeString()}</div>
+
+  <table>
+    <thead>
+      <tr><th>#</th><th>Peso (lbs)</th><th>Características</th><th>Riel</th></tr>
+    </thead>
+    <tbody>${filas}</tbody>
+  </table>
+
+  <div class="totales">
+    <div class="peso-total">PESO TOTAL: ${pesoSum.toFixed(2)} lbs</div>
+    <div>Total canales: ${lista.length}</div>
+    <div>Peso promedio: ${(pesoSum / lista.length).toFixed(2)} lbs</div>
+    <div>Light (sin grasa/papada): ${lista.filter((c) => !c.graso && !c.papada).length}</div>
+    <div>Con grasa: ${lista.filter((c) => c.graso).length}</div>
+    <div>Con papada: ${lista.filter((c) => c.papada).length}</div>
+    <div>Golpeados: ${lista.filter((c) => c.golpeado).length}</div>
+  </div>
+
+  <p class="no-print" style="margin-top:20px;">
+    <button onclick="window.print()" style="padding:10px 20px;font-size:15px;">🖨 Imprimir / Guardar como PDF</button>
+  </p>
+</body>
+</html>`;
+
+    ventana.document.write(html);
+    ventana.document.close();
+  };
+
   const guardarCanales = async () => {
     if (canales.length === 0) {
       alert('Agrega al menos 1 canal');
       return;
     }
 
+    // Abrir la ventana del reporte de una vez (evita el bloqueador de popups)
+    const ventanaReporte = window.open('', '_blank');
+
     try {
       setGuardando(true);
-      await api.registrarEntrada(canales);
-      alert(`✅ ${canales.length} canales registrados`);
+      const lista = [...canales];
+      await api.registrarEntrada(lista);
+      generarReporte(lista, ventanaReporte);
+      alert(`✅ ${lista.length} canales registrados (${lista.reduce((s, c) => s + c.peso_lbs, 0).toFixed(2)} lbs)`);
       setCanales([]);
       setRielManual(false);
       await cargarSugerencia();
     } catch (err) {
+      if (ventanaReporte) ventanaReporte.close();
       alert('Error: ' + err.message);
     } finally {
       setGuardando(false);
@@ -202,8 +287,21 @@ export function EntradaCanales() {
         )}
       </div>
 
+      {/* Switch de rieles */}
+      <label className="switch-rieles">
+        <input
+          type="checkbox"
+          checked={!sinRieles}
+          onChange={(e) => setSinRieles(!e.target.checked)}
+        />
+        <span>
+          📍 Asignar rieles{' '}
+          {sinRieles && <em>(desactivado: solo se guardan pesos y características)</em>}
+        </span>
+      </label>
+
       {/* Rieles */}
-      {cargaRieles.length > 0 && (
+      {!sinRieles && cargaRieles.length > 0 && (
         <div className="rieles-status">
           {cargaRieles.map((r) => {
             const total = r.peso_total + pesoPendientePorRiel(r.riel);
@@ -288,7 +386,10 @@ export function EntradaCanales() {
         </div>
 
         <button onClick={agregarCanal} className="btn-agregar-grande">
-          ➕ AGREGAR CANAL {bruto > 0 && pesoNeto > 0 ? `(${pesoNeto.toFixed(1)} lbs → Riel ${riel})` : ''}
+          ➕ AGREGAR CANAL{' '}
+          {bruto > 0 && pesoNeto > 0
+            ? `(${pesoNeto.toFixed(1)} lbs${sinRieles ? '' : ` → Riel ${riel}`})`
+            : ''}
         </button>
       </div>
 
@@ -322,7 +423,7 @@ export function EntradaCanales() {
                 {canal.papada && <span className="badge papada">Papada</span>}
                 {canal.golpeado && <span className="badge golpeado">⚠️ Golpe</span>}
               </div>
-              <div>Riel {canal.ubicacion_riel}</div>
+              <div>{canal.ubicacion_riel > 0 ? `Riel ${canal.ubicacion_riel}` : '—'}</div>
               <div>
                 <button onClick={() => eliminarCanal(idx)} className="btn-delete">
                   ✕
@@ -334,7 +435,9 @@ export function EntradaCanales() {
 
         {canales.length > 0 && (
           <button onClick={guardarCanales} className="btn-guardar" disabled={guardando}>
-            {guardando ? 'Guardando...' : `✅ Guardar ${canales.length} Canales`}
+            {guardando
+              ? 'Guardando...'
+              : `✅ Guardar ${canales.length} Canales y Generar Reporte PDF`}
           </button>
         )}
       </div>
