@@ -1,25 +1,50 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '../api';
 import '../styles/EntradaCanales.css';
 
+const cargadoresIniciales = () => {
+  try {
+    const guardados = JSON.parse(localStorage.getItem('cargadores'));
+    if (Array.isArray(guardados) && guardados.length === 3) return guardados;
+  } catch {
+    /* ignorar */
+  }
+  return [
+    { nombre: '', peso: '' },
+    { nombre: '', peso: '' },
+    { nombre: '', peso: '' },
+  ];
+};
+
 export function EntradaCanales() {
   const [canales, setCanales] = useState([]);
-  const [peso, setPeso] = useState('');
+  const [pesoBruto, setPesoBruto] = useState('');
   const [graso, setGraso] = useState(false);
   const [papada, setPapada] = useState(false);
   const [golpeado, setGolpeado] = useState(false);
-  const [riel, setRiel] = useState('1');
+  const [riel, setRiel] = useState(1);
   const [guardando, setGuardando] = useState(false);
   const [cargaRieles, setCargaRieles] = useState([]);
   const [rielSugerido, setRielSugerido] = useState(null);
+  const [rielManual, setRielManual] = useState(false);
+
+  // Cargadores de la jornada (se pesan en la báscula junto con el canal)
+  const [cargadores, setCargadores] = useState(cargadoresIniciales);
+  const [enBascula, setEnBascula] = useState([true, true, true]);
+  const [mostrarCargadores, setMostrarCargadores] = useState(true);
+
+  const pesoInputRef = useRef(null);
 
   useEffect(() => {
     cargarSugerencia();
   }, []);
 
-  // Recalcula la sugerencia sumando lo que ya está en el reefer + lo pendiente por guardar
   useEffect(() => {
-    if (cargaRieles.length === 0) return;
+    localStorage.setItem('cargadores', JSON.stringify(cargadores));
+  }, [cargadores]);
+
+  useEffect(() => {
+    if (cargaRieles.length === 0 || rielManual) return;
 
     const cargas = cargaRieles.map((r) => {
       const pendiente = canales
@@ -30,8 +55,8 @@ export function EntradaCanales() {
 
     const sugerido = cargas.reduce((min, r) => (r.peso_total < min.peso_total ? r : min));
     setRielSugerido(sugerido.riel);
-    setRiel(String(sugerido.riel));
-  }, [cargaRieles, canales]);
+    setRiel(sugerido.riel);
+  }, [cargaRieles, canales, rielManual]);
 
   const cargarSugerencia = async () => {
     try {
@@ -42,26 +67,58 @@ export function EntradaCanales() {
     }
   };
 
+  const setCargador = (idx, campo, valor) => {
+    setCargadores((prev) => {
+      const nuevo = [...prev];
+      nuevo[idx] = { ...nuevo[idx], [campo]: valor };
+      return nuevo;
+    });
+  };
+
+  const toggleEnBascula = (idx) => {
+    setEnBascula((prev) => {
+      const nuevo = [...prev];
+      nuevo[idx] = !nuevo[idx];
+      return nuevo;
+    });
+  };
+
+  // Suma de los cargadores que están sobre la báscula
+  const pesoCargadores = cargadores.reduce((sum, c, idx) => {
+    const p = parseFloat(c.peso);
+    return enBascula[idx] && p > 0 ? sum + p : sum;
+  }, 0);
+
+  const bruto = parseFloat(pesoBruto) || 0;
+  const pesoNeto = Math.round((bruto - pesoCargadores) * 100) / 100;
+
   const agregarCanal = () => {
-    if (!peso || peso <= 0) {
-      alert('Ingresa peso válido');
+    if (!pesoBruto || bruto <= 0) {
+      alert('Ingresa el peso de la báscula');
+      return;
+    }
+    if (pesoNeto <= 0) {
+      alert(
+        `El peso del canal sale en ${pesoNeto} lbs. Revisa el peso de la báscula o los cargadores marcados.`
+      );
       return;
     }
 
     const nuevoCanal = {
       numero_canal: canales.length + 1,
-      peso_lbs: parseFloat(peso),
+      peso_lbs: pesoNeto,
       graso,
       papada,
       golpeado,
-      ubicacion_riel: parseInt(riel),
+      ubicacion_riel: riel,
     };
 
     setCanales([...canales, nuevoCanal]);
-    setPeso('');
+    setPesoBruto('');
     setGraso(false);
     setPapada(false);
     setGolpeado(false);
+    pesoInputRef.current?.focus();
   };
 
   const guardarCanales = async () => {
@@ -75,6 +132,7 @@ export function EntradaCanales() {
       await api.registrarEntrada(canales);
       alert(`✅ ${canales.length} canales registrados`);
       setCanales([]);
+      setRielManual(false);
       await cargarSugerencia();
     } catch (err) {
       alert('Error: ' + err.message);
@@ -94,76 +152,147 @@ export function EntradaCanales() {
       .filter((c) => c.ubicacion_riel === numRiel)
       .reduce((sum, c) => sum + c.peso_lbs, 0);
 
+  const hayCargadores = cargadores.some((c) => parseFloat(c.peso) > 0);
+
   return (
     <div className="entrada-container">
       <h2>🚚 Entrada de Canales</h2>
 
+      {/* Cargadores de la jornada */}
+      <div className="cargadores-section">
+        <div className="cargadores-header" onClick={() => setMostrarCargadores(!mostrarCargadores)}>
+          <h3>
+            💪 Cargadores de hoy{' '}
+            {hayCargadores && (
+              <span className="cargadores-resumen-tag">
+                (restando {pesoCargadores.toFixed(1)} lbs)
+              </span>
+            )}
+          </h3>
+          <span>{mostrarCargadores ? '▲' : '▼'}</span>
+        </div>
+
+        {mostrarCargadores && (
+          <>
+            <p className="cargadores-hint">
+              Anota el peso de cada cargador que se sube a la báscula. La app se lo resta al peso
+              total y guarda solo el peso del canal.
+            </p>
+            <div className="cargadores-grid">
+              {cargadores.map((c, idx) => (
+                <div key={idx} className="cargador-item">
+                  <input
+                    type="text"
+                    placeholder={`Cargador ${idx + 1}`}
+                    value={c.nombre}
+                    onChange={(e) => setCargador(idx, 'nombre', e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    placeholder="Peso (lbs)"
+                    value={c.peso}
+                    onChange={(e) => setCargador(idx, 'peso', e.target.value)}
+                    step="0.5"
+                  />
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Rieles */}
       {cargaRieles.length > 0 && (
         <div className="rieles-status">
           {cargaRieles.map((r) => {
             const total = r.peso_total + pesoPendientePorRiel(r.riel);
             return (
-              <div
+              <button
                 key={r.riel}
-                className={`riel-card ${rielSugerido === r.riel ? 'sugerido' : ''}`}
+                className={`riel-card ${riel === r.riel ? 'seleccionado' : ''} ${
+                  rielSugerido === r.riel ? 'sugerido' : ''
+                }`}
+                onClick={() => {
+                  setRiel(r.riel);
+                  setRielManual(true);
+                }}
               >
                 <div className="riel-nombre">Riel {r.riel}</div>
                 <div className="riel-peso">{total.toFixed(0)} lbs</div>
-                {rielSugerido === r.riel && <div className="riel-tag">⬅ Cuelga aquí</div>}
-              </div>
+                {rielSugerido === r.riel && <div className="riel-tag">sugerido</div>}
+              </button>
             );
           })}
         </div>
       )}
 
-      <div className="entrada-form">
-        <div className="form-group">
-          <label>Peso (lbs)</label>
-          <input
-            type="number"
-            value={peso}
-            onChange={(e) => setPeso(e.target.value)}
-            placeholder="ej: 105"
-            step="0.5"
-            autoFocus
-            onKeyDown={(e) => e.key === 'Enter' && agregarCanal()}
-          />
-        </div>
+      {/* Captura rápida */}
+      <div className="captura-rapida">
+        <label className="captura-label">Peso en báscula (lbs)</label>
+        <input
+          ref={pesoInputRef}
+          type="number"
+          inputMode="decimal"
+          className="peso-bruto-input"
+          value={pesoBruto}
+          onChange={(e) => setPesoBruto(e.target.value)}
+          placeholder="0.0"
+          step="0.5"
+          autoFocus
+          onKeyDown={(e) => e.key === 'Enter' && agregarCanal()}
+        />
 
-        <div className="form-group flags-group">
-          <label>Características (marca lo que veas)</label>
-          <label className="flag-check">
-            <input type="checkbox" checked={graso} onChange={(e) => setGraso(e.target.checked)} />
-            🥓 Mucha grasa
-          </label>
-          <label className="flag-check">
-            <input type="checkbox" checked={papada} onChange={(e) => setPapada(e.target.checked)} />
+        {hayCargadores && (
+          <>
+            <div className="en-bascula">
+              <span className="en-bascula-label">¿Quiénes cargaron?</span>
+              {cargadores.map((c, idx) =>
+                parseFloat(c.peso) > 0 ? (
+                  <button
+                    key={idx}
+                    className={`chip cargador-chip ${enBascula[idx] ? 'activo' : ''}`}
+                    onClick={() => toggleEnBascula(idx)}
+                  >
+                    {c.nombre || `Cargador ${idx + 1}`} · {parseFloat(c.peso).toFixed(0)} lb
+                  </button>
+                ) : null
+              )}
+            </div>
+
+            <div className={`neto-display ${pesoNeto > 0 ? '' : 'invalido'}`}>
+              Peso del canal: <strong>{bruto > 0 ? pesoNeto.toFixed(2) : '—'} lbs</strong>
+            </div>
+          </>
+        )}
+
+        <div className="chips-flags">
+          <button
+            className={`chip flag-chip graso ${graso ? 'activo' : ''}`}
+            onClick={() => setGraso(!graso)}
+          >
+            🥓 Grasa
+          </button>
+          <button
+            className={`chip flag-chip papada ${papada ? 'activo' : ''}`}
+            onClick={() => setPapada(!papada)}
+          >
             Papada
-          </label>
-          <label className="flag-check">
-            <input type="checkbox" checked={golpeado} onChange={(e) => setGolpeado(e.target.checked)} />
-            ⚠️ Golpeado / moretón
-          </label>
-          <small className="flag-hint">
-            Sin grasa y sin papada = cuenta como Light
-          </small>
+          </button>
+          <button
+            className={`chip flag-chip golpeado ${golpeado ? 'activo' : ''}`}
+            onClick={() => setGolpeado(!golpeado)}
+          >
+            ⚠️ Golpe
+          </button>
         </div>
 
-        <div className="form-group">
-          <label>Riel {rielSugerido && `(sugerido: ${rielSugerido})`}</label>
-          <select value={riel} onChange={(e) => setRiel(e.target.value)}>
-            <option value="1">Riel 1</option>
-            <option value="2">Riel 2</option>
-            <option value="3">Riel 3</option>
-            <option value="4">Riel 4</option>
-          </select>
-        </div>
-
-        <button onClick={agregarCanal} className="btn-agregar">
-          ➕ Agregar
+        <button onClick={agregarCanal} className="btn-agregar-grande">
+          ➕ AGREGAR CANAL {bruto > 0 && pesoNeto > 0 ? `(${pesoNeto.toFixed(1)} lbs → Riel ${riel})` : ''}
         </button>
       </div>
 
+      {/* Lista pendiente */}
       <div className="canales-preview">
         <h3>Canales a Ingresar ({canales.length})</h3>
         <div className="resumen">
@@ -205,7 +334,7 @@ export function EntradaCanales() {
 
         {canales.length > 0 && (
           <button onClick={guardarCanales} className="btn-guardar" disabled={guardando}>
-            {guardando ? 'Guardando...' : '✅ Guardar Canales'}
+            {guardando ? 'Guardando...' : `✅ Guardar ${canales.length} Canales`}
           </button>
         )}
       </div>
